@@ -1,0 +1,43 @@
+# 内网穿透工具仓库忽略规则。
+# 排除构建产物、依赖目录、本地密钥与 IDE 缓存，避免把环境相关文件提交进版本库。
+
+# Go
+server/bin/
+server/tmp/
+*.exe
+*.test
+*.out
+
+# 管理后台
+web/node_modules/
+web/dist/
+server/web/dist/**
+!server/web/dist/index.html
+
+# Flutter
+client/.dart_tool/
+client/.flutter-plugins
+client/.flutter-plugins-dependencies
+client/.packages
+client/build/
+client/.idea/
+client/*.iml
+
+# 本地配置与密钥
+server/config.yaml
+*.pem
+*.key
+.env
+.env.local
+
+# IDE / OS
+.idea/
+.vscode/
+.cursor/
+*.swp
+Thumbs.db
+.DS_Store
+
+# 日志
+*.log
+logs/

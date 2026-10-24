@@ -1,0 +1,101 @@
+export interface AdminUser {
+  id: number
+  username: string
+}
+
+export interface TunnelDomain {
+  id: number
+  tunnel_id: number
+  domain: string
+  https_enabled: boolean
+  cert_status: string
+  cert_expire_at?: string
+  nginx_status: string
+  last_error: string
+  created_at: string
+}
+
+export interface Tunnel {
+  id: number
+  name: string
+  remark: string
+  key: string
+  last_online_at?: string
+  created_at: string
+  domains?: TunnelDomain[]
+}
+
+export interface TunnelDetail {
+  tunnel: Tunnel
+  connect_url: string
+}
+
+export interface ClientSession {
+  id: number
+  tunnel_id: number
+  client_ip: string
+  hostname: string
+  os: string
+  version: string
+  connected_at: string
+  disconnected_at?: string
+  last_heartbeat_at: string
+  disconnect_reason: string
+  request_count: number
+  bytes_in: number
+  bytes_out: number
+  online: boolean
+}
+
+export interface RequestLog {
+  id: number
+  request_id: string
+  tunnel_id: number
+  session_id?: number
+  domain: string
+  method: string
+  scheme: string
+  host: string
+  path: string
+  query_string: string
+  query_params: string
+  form_params: string
+  remote_ip: string
+  user_agent: string
+  referer: string
+  request_headers: string
+  response_headers: string
+  status: number
+  request_size: number
+  response_size: number
+  received_at: string
+  forwarded_at?: string
+  first_byte_at?: string
+  completed_at?: string
+  duration_ms: number
+  upstream_ms: number
+  local_target: string
+  matched_rule: string
+  error_message: string
+  is_websocket: boolean
+  ws_message_count: number
+  created_at: string
+  body?: RequestLogBody
+}
+
+export interface RequestLogBody {
+  request_body?: string
+  request_truncated: boolean
+  request_content_type: string
+  response_body?: string
+  response_truncated: boolean
+  response_content_type: string
+}
+
+export interface DashboardStats {
+  online_sessions: number
+  tunnel_count: number
+  today_requests: number
+  today_errors: number
+  error_rate: number
+}

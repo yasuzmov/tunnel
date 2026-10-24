@@ -1,0 +1,17 @@
+[Unit]
+Description=Intranet tunnel server
+After=network.target mysql.service
+
+[Service]
+Type=simple
+User=tunnel
+WorkingDirectory=/opt/tunnel
+ExecStart=/opt/tunnel/tunnel-server -config /opt/tunnel/config.yaml
+Restart=on-failure
+RestartSec=3
+# nginx -t / reload / certbot 需要额外权限时，建议配置 sudoers 而不是直接以 root 跑业务进程
+NoNewPrivileges=false
+LimitNOFILE=65535
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,24 @@
+html,
+body,
+#app {
+  margin: 0;
+  height: 100%;
+  font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  background: #f5f7fa;
+  color: #303133;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+.page-card {
+  background: #fff;
+  padding: 20px;
+  border-radius: 8px;
+}
+
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+}

@@ -1,0 +1,48 @@
+# 内网穿透服务端配置示例。
+# 复制为 server/config.yaml 后按环境修改。jwt.secret 与管理员口令切勿提交到仓库。
+
+admin:
+  listen: ":8080"
+  # 客户端展示用的接入根地址。生产环境应写成 https://你的管理域名
+  public_url: "http://127.0.0.1:8080"
+
+ingress:
+  # 仅给本机 nginx 反代，不要直接暴露到公网
+  listen: "127.0.0.1:8081"
+
+mysql:
+  dsn: "root:password@tcp(127.0.0.1:3306)/tunnel?charset=utf8mb4&parseTime=True&loc=Local"
+
+jwt:
+  secret: "please-change-me"
+  expire_hours: 72
+
+bootstrap:
+  username: "admin"
+  password: "admin123"
+
+nginx:
+  # Windows 本机联调请保持 false，只预览配置不落盘
+  enabled: false
+  conf_dir: "/etc/nginx/conf.d/tunnel"
+  nginx_bin: "nginx"
+  client_max_body_size: "50m"
+  acme_webroot: "/var/www/acme"
+  ingress_upstream: "127.0.0.1:8081"
+
+certbot:
+  enabled: false
+  bin: "certbot"
+  email: "admin@example.com"
+  webroot: "/var/www/acme"
+
+log:
+  body_limit: 65536
+  retain_days: 30
+  batch_size: 200
+  flush_interval_ms: 1000
+  channel_size: 4096
+
+tunnel:
+  idle_timeout_sec: 45
+  response_timeout_sec: 60
