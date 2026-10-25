@@ -77,6 +77,20 @@ func (r *tunnelRepo) List(ctx context.Context, page, pageSize int, keyword strin
 	return list, total, nil
 }
 
+// LoggingFlags 只取 id 与开关，给入口路由缓存用。
+func (r *tunnelRepo) LoggingFlags(ctx context.Context) (map[uint]bool, error) {
+	var rows []model.Tunnel
+	err := r.db.WithContext(ctx).Select("id", "log_enabled").Find(&rows).Error
+	if err != nil {
+		return nil, fmt.Errorf("读取日志开关: %w", err)
+	}
+	flags := make(map[uint]bool, len(rows))
+	for _, t := range rows {
+		flags[t.ID] = t.LogEnabled
+	}
+	return flags, nil
+}
+
 func (r *tunnelRepo) TouchOnline(ctx context.Context, id uint, at time.Time) error {
 	err := r.db.WithContext(ctx).Model(&model.Tunnel{}).Where("id = ?", id).Update("last_online_at", at).Error
 	if err != nil {

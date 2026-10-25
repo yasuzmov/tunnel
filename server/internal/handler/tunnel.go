@@ -93,6 +93,26 @@ func (h *TunnelHandler) Delete(c *gin.Context) {
 	response.OK(c, gin.H{})
 }
 
+// SetLogging 开启或关闭该记录的转发日志。
+func (h *TunnelHandler) SetLogging(c *gin.Context) {
+	id, ok := queryUint(c, "id")
+	if !ok {
+		response.BadRequest(c, "无效的记录 ID")
+		return
+	}
+	var in service.SetLoggingInput
+	if err := c.ShouldBindJSON(&in); err != nil {
+		response.BadRequest(c, "参数不合法")
+		return
+	}
+	t, err := h.svc.SetLogging(c.Request.Context(), id, in.Enabled)
+	if err != nil {
+		writeServiceError(c, err)
+		return
+	}
+	response.OK(c, h.withURL(t))
+}
+
 // ResetKey 轮换接入 key。
 func (h *TunnelHandler) ResetKey(c *gin.Context) {
 	id, ok := queryUint(c, "id")

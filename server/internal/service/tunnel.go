@@ -60,6 +60,11 @@ type UpdateInput struct {
 	Remark string `json:"remark"`
 }
 
+// SetLoggingInput 是否记录该穿透的转发日志。
+type SetLoggingInput struct {
+	Enabled bool `json:"enabled"`
+}
+
 // Create 生成随机 key 并落库。
 func (s *TunnelService) Create(ctx context.Context, in CreateInput) (*model.Tunnel, error) {
 	name := strings.TrimSpace(in.Name)
@@ -70,9 +75,31 @@ func (s *TunnelService) Create(ctx context.Context, in CreateInput) (*model.Tunn
 	if err != nil {
 		return nil, err
 	}
-	t := &model.Tunnel{Name: name, Remark: strings.TrimSpace(in.Remark), Key: key}
+	t := &model.Tunnel{Name: name, Remark: strings.TrimSpace(in.Remark), Key: key, LogEnabled: true}
 	if err := s.tunnels.Create(ctx, t); err != nil {
 		return nil, err
+	}
+	return t, nil
+}
+
+// SetLogging 切换该记录是否写入转发日志，并刷新入口缓存使开关立即生效。
+// 缓存刷新失败时数据库已更新，返回 ErrOperation，再次切换会重试刷新。
+func (s *TunnelService) SetLogging(ctx context.Context, id uint, enabled bool) (*model.Tunnel, error) {
+	t, err := s.Get(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if t.LogEnabled == enabled {
+		return t, nil
+	}
+	t.LogEnabled = enabled
+	if err := s.tunnels.Update(ctx, t); err != nil {
+		return nil, err
+	}
+	if s.reload != nil {
+		if err := s.reload.Reload(ctx); err != nil {
+			return nil, fmt.Errorf("%w: 刷新入口缓存失败", ErrOperation)
+		}
 	}
 	return t, nil
 }

@@ -53,8 +53,16 @@ func (s *Server) logOffline(r *http.Request, rt Route) {
 	item := newLog(r, rt.TunnelID, rt.Domain, nil)
 	item.Status = http.StatusBadGateway
 	finishLog(item, "client offline")
-	s.Logs.Enqueue(entryOnly(item))
+	s.record(rt.LogEnabled, entryOnly(item))
 	log.Printf("域名 %s 无在线客户端", rt.Domain)
+}
+
+// record 在日志开关关闭时直接丢弃，请求转发不受影响。
+func (s *Server) record(enabled bool, e *logwriter.Entry) {
+	if !enabled || e == nil || s.Logs == nil {
+		return
+	}
+	s.Logs.Enqueue(e)
 }
 
 // ListenAndServe 启动入口。

@@ -41,6 +41,9 @@ func New(cfg *config.Config) (*App, error) {
 	if err := database.SeedAdmin(db, cfg.Bootstrap.Username, cfg.Bootstrap.Password); err != nil {
 		return nil, err
 	}
+	if err := database.SeedDomainPool(db); err != nil {
+		return nil, err
+	}
 	ctx, cancel := context.WithCancel(context.Background())
 	repos := repository.New(db)
 	hub := tunnel.NewHub()

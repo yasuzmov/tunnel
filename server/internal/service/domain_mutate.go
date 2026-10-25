@@ -12,8 +12,8 @@ import (
 	"tunnel-server/internal/pkg/validator"
 )
 
-// Create 校验隧道已联通、域名未被占用，然后写入并应用 nginx。
-func (s *DomainService) Create(ctx context.Context, tunnelID uint, in CreateInputDomain) (*model.TunnelDomain, error) {
+// Create 校验隧道已联通、域名已登记且当前管理员有权限，然后写入并应用 nginx。
+func (s *DomainService) Create(ctx context.Context, adminID, tunnelID uint, in CreateInputDomain) (*model.TunnelDomain, error) {
 	tun, err := s.tunnels.FindByID(ctx, tunnelID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -27,6 +27,9 @@ func (s *DomainService) Create(ctx context.Context, tunnelID uint, in CreateInpu
 	host, err := validator.ValidateDomain(in.Domain)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %s", ErrBadInput, err.Error())
+	}
+	if err := s.checkDomainAllowed(ctx, adminID, host); err != nil {
+		return nil, err
 	}
 	if _, err := s.domains.FindByDomain(ctx, host); err == nil {
 		return nil, ErrDomainTaken

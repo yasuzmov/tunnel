@@ -41,14 +41,14 @@ func (s *Server) proxyHTTP(w http.ResponseWriter, r *http.Request, sess *tunnel.
 		writeBadGateway(w, "上游无响应")
 		item.Status = http.StatusBadGateway
 		finishLog(item, err.Error())
-		s.enqueue(item, reqCap, r.Header.Get("Content-Type"), nil, "")
+		s.enqueue(rt.LogEnabled, item, reqCap, r.Header.Get("Content-Type"), nil, "")
 		return
 	}
 	defer respBody.Close()
-	s.writeHTTPResponse(w, r, item, reqCap, resp, respBody)
+	s.writeHTTPResponse(w, r, rt, item, reqCap, resp, respBody)
 }
 
-func (s *Server) writeHTTPResponse(w http.ResponseWriter, r *http.Request, item *model.RequestLog, reqCap *capBuf, resp *tunnel.HTTPRespHeader, respBody io.ReadCloser) {
+func (s *Server) writeHTTPResponse(w http.ResponseWriter, r *http.Request, rt Route, item *model.RequestLog, reqCap *capBuf, resp *tunnel.HTTPRespHeader, respBody io.ReadCloser) {
 	fb := time.Now()
 	item.FirstByteAt = &fb
 	item.Status = resp.Status
@@ -71,10 +71,13 @@ func (s *Server) writeHTTPResponse(w http.ResponseWriter, r *http.Request, item 
 		msg = err.Error()
 	}
 	finishLog(item, msg)
-	s.enqueue(item, reqCap, r.Header.Get("Content-Type"), respCap, outHeader.Get("Content-Type"))
+	s.enqueue(rt.LogEnabled, item, reqCap, r.Header.Get("Content-Type"), respCap, outHeader.Get("Content-Type"))
 }
 
-func (s *Server) enqueue(item *model.RequestLog, reqCap *capBuf, reqCT string, respCap *capBuf, respCT string) {
+func (s *Server) enqueue(enabled bool, item *model.RequestLog, reqCap *capBuf, reqCT string, respCap *capBuf, respCT string) {
+	if !enabled {
+		return
+	}
 	body := &model.RequestLogBody{
 		RequestContentType:  reqCT,
 		RequestTruncated:    reqCap.truncated,

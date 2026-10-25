@@ -58,3 +58,22 @@ func (h *AuthHandler) Me(c *gin.Context) {
 	}
 	response.OK(c, user)
 }
+
+// ChangePassword 修改当前登录管理员的口令。
+func (h *AuthHandler) ChangePassword(c *gin.Context) {
+	claims := middleware.Claims(c)
+	if claims == nil {
+		response.Unauthorized(c, "未登录")
+		return
+	}
+	var in service.ChangePasswordInput
+	if err := c.ShouldBindJSON(&in); err != nil {
+		response.BadRequest(c, "参数不合法")
+		return
+	}
+	if err := h.svc.ChangePassword(c.Request.Context(), claims.UserID, in); err != nil {
+		writeServiceError(c, err)
+		return
+	}
+	response.OK(c, gin.H{})
+}

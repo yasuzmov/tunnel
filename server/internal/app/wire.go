@@ -20,7 +20,7 @@ import (
 
 func wire(cfg *config.Config, repos *repository.Repos, hub *tunnel.Hub) (*gin.Engine, *ingress.Server, *logwriter.Writer) {
 	bus := eventbus.New()
-	resolver := ingress.NewResolver(repos.Domain)
+	resolver := ingress.NewResolver(repos.Domain, repos.Tunnel)
 	_ = resolver.Reload(context.Background())
 	writer := logwriter.New(repos.Log, bus, cfg.Log.ChannelSize, cfg.Log.BatchSize, cfg.Log.FlushInterval())
 	runner := nginx.ExecRunner{}
@@ -38,6 +38,8 @@ func wire(cfg *config.Config, repos *repository.Repos, hub *tunnel.Hub) (*gin.En
 	domainSvc := service.NewDomainService(service.DomainDeps{
 		Tunnels: repos.Tunnel,
 		Domains: repos.Domain,
+		Pool:    repos.Pool,
+		Admins:  repos.Admin,
 		Nginx:   ngx,
 		Issue:   issuer.Issue,
 		Reload:  resolver,
@@ -46,6 +48,8 @@ func wire(cfg *config.Config, repos *repository.Repos, hub *tunnel.Hub) (*gin.En
 		NginxOn: cfg.Nginx.Enabled,
 		CertOn:  cfg.Certbot.Enabled,
 	})
+	adminSvc := service.NewAdminService(repos.Admin, repos.Pool)
+	poolSvc := service.NewDomainPoolService(repos.Pool, repos.Domain)
 	logSvc := service.NewLogService(repos.Log, cfg.Log.RetainDays)
 	go cleanupLoop(logSvc)
 
@@ -65,16 +69,18 @@ func wire(cfg *config.Config, repos *repository.Repos, hub *tunnel.Hub) (*gin.En
 		ResponseTimeout: cfg.Tunnel.ResponseTimeout(),
 	}
 	engine := handler.NewEngine(handler.Deps{
-		Auth:      handler.NewAuthHandler(service.NewAuthService(repos.Admin, cfg.JWT.Secret, cfg.JWT.ExpireDuration())),
-		Tunnel:    handler.NewTunnelHandler(tunSvc),
-		Domain:    handler.NewDomainHandler(domainSvc),
-		Session:   handler.NewSessionHandler(service.NewSessionService(repos.Session)),
-		Log:       handler.NewLogHandler(logSvc),
-		Stats:     handler.NewStatsHandler(service.NewStatsService(repos.Stats)),
-		Event:     handler.NewEventHandler(bus),
-		TunnelWS:  ep,
-		JWTSecret: cfg.JWT.Secret,
-		Static:    staticFS(),
+		Auth:       handler.NewAuthHandler(service.NewAuthService(repos.Admin, cfg.JWT.Secret, cfg.JWT.ExpireDuration())),
+		Tunnel:     handler.NewTunnelHandler(tunSvc),
+		Domain:     handler.NewDomainHandler(domainSvc),
+		DomainPool: handler.NewDomainPoolHandler(poolSvc, adminSvc),
+		Admin:      handler.NewAdminHandler(adminSvc),
+		Session:    handler.NewSessionHandler(service.NewSessionService(repos.Session)),
+		Log:        handler.NewLogHandler(logSvc),
+		Stats:      handler.NewStatsHandler(service.NewStatsService(repos.Stats)),
+		Event:      handler.NewEventHandler(bus),
+		TunnelWS:   ep,
+		JWTSecret:  cfg.JWT.Secret,
+		Static:     staticFS(),
 	})
 	return engine, ing, writer
 }

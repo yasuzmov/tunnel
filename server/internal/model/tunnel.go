@@ -12,6 +12,9 @@ type Tunnel struct {
 	Name         string         `json:"name" gorm:"size:128;not null"`
 	Remark       string         `json:"remark" gorm:"size:512"`
 	Key          string         `json:"key" gorm:"size:64;uniqueIndex;not null"`
+	// LogEnabled 关闭后公网请求仍转发，但不写 request_logs。
+	// 默认开启：升级加列时已有记录继续记日志，避免静默停记。
+	LogEnabled   bool           `json:"log_enabled" gorm:"not null;default:1"`
 	LastOnlineAt *time.Time     `json:"last_online_at"`
 	CreatedAt    time.Time      `json:"created_at"`
 	UpdatedAt    time.Time      `json:"updated_at"`

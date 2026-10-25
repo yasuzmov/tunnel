@@ -13,6 +13,38 @@ import (
 type AdminUserRepository interface {
 	FindByUsername(ctx context.Context, username string) (*model.AdminUser, error)
 	FindByID(ctx context.Context, id uint) (*model.AdminUser, error)
+	Create(ctx context.Context, u *model.AdminUser) error
+	UpdateProfile(ctx context.Context, id uint, username, role string) error
+	UpdatePassword(ctx context.Context, id uint, passwordHash string) error
+	Delete(ctx context.Context, id uint) error
+	List(ctx context.Context) ([]model.AdminUser, error)
+	CountByRole(ctx context.Context, role string) (int64, error)
+}
+
+// DomainBinding 域名池条目当前绑定到的穿透记录，未绑定时 TunnelID 为 0。
+type DomainBinding struct {
+	DomainID     uint
+	TunnelID     uint
+	TunnelName   string
+	HTTPSEnabled bool
+	CertStatus   string
+	NginxStatus  string
+}
+
+// DomainPoolRepository 统一域名池与管理员域名授权。
+type DomainPoolRepository interface {
+	Create(ctx context.Context, d *model.Domain) error
+	UpdateRemark(ctx context.Context, id uint, remark string) error
+	// Delete 同时删除该域名的全部管理员授权。
+	Delete(ctx context.Context, id uint) error
+	FindByID(ctx context.Context, id uint) (*model.Domain, error)
+	FindByDomain(ctx context.Context, domain string) (*model.Domain, error)
+	List(ctx context.Context, keyword string) ([]model.Domain, error)
+	// ListByAdmin 列出被授权的域名；超级管理员不查此接口。
+	ListByAdmin(ctx context.Context, adminID uint) ([]model.Domain, error)
+	ListAdminDomainIDs(ctx context.Context, adminID uint) ([]uint, error)
+	SetAdminDomains(ctx context.Context, adminID uint, domainIDs []uint) error
+	ListBindings(ctx context.Context) ([]DomainBinding, error)
 }
 
 // TunnelRepository 穿透记录存储。
@@ -24,6 +56,8 @@ type TunnelRepository interface {
 	FindByKey(ctx context.Context, key string) (*model.Tunnel, error)
 	List(ctx context.Context, page, pageSize int, keyword string) ([]model.Tunnel, int64, error)
 	TouchOnline(ctx context.Context, id uint, at time.Time) error
+	// LoggingFlags 返回全部未删除记录的日志开关，供入口缓存使用，避免每个请求查库。
+	LoggingFlags(ctx context.Context) (map[uint]bool, error)
 }
 
 // DomainRepository 域名绑定存储。

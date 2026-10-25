@@ -7,6 +7,7 @@ type Repos struct {
 	Admin   AdminUserRepository
 	Tunnel  TunnelRepository
 	Domain  DomainRepository
+	Pool    DomainPoolRepository
 	Session SessionRepository
 	Log     LogRepository
 	Stats   StatsRepository
@@ -18,6 +19,7 @@ func New(db *gorm.DB) *Repos {
 		Admin:   NewAdminUserRepo(db),
 		Tunnel:  NewTunnelRepo(db),
 		Domain:  NewDomainRepo(db),
+		Pool:    NewDomainPoolRepo(db),
 		Session: NewSessionRepo(db),
 		Log:     NewLogRepo(db),
 		Stats:   NewStatsRepo(db),

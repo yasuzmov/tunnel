@@ -11,16 +11,18 @@ import (
 
 // Deps 组装管理端路由所需的全部 handler。
 type Deps struct {
-	Auth    *AuthHandler
-	Tunnel  *TunnelHandler
-	Domain  *DomainHandler
-	Session *SessionHandler
-	Log     *LogHandler
-	Stats   *StatsHandler
-	Event   *EventHandler
-	TunnelWS *tunnel.Endpoint
-	JWTSecret string
-	Static    fs.FS
+	Auth       *AuthHandler
+	Tunnel     *TunnelHandler
+	Domain     *DomainHandler
+	DomainPool *DomainPoolHandler
+	Admin      *AdminHandler
+	Session    *SessionHandler
+	Log        *LogHandler
+	Stats      *StatsHandler
+	Event      *EventHandler
+	TunnelWS   *tunnel.Endpoint
+	JWTSecret  string
+	Static     fs.FS
 }
 
 // NewEngine 创建管理端 Gin 引擎：API、隧道接入、SPA。
@@ -40,10 +42,22 @@ func NewEngine(d Deps) *gin.Engine {
 
 func registerAPI(api *gin.RouterGroup, d Deps) {
 	api.GET("/auth/me", d.Auth.Me)
+	api.PUT("/auth/password", d.Auth.ChangePassword)
 	api.GET("/stats/dashboard", d.Stats.Dashboard)
 	api.GET("/events", d.Event.Stream)
 	api.GET("/logs", d.Log.List)
 	api.GET("/logs/:id", d.Log.Get)
+	api.GET("/domains", d.DomainPool.List)
+	api.POST("/domains", d.DomainPool.Create)
+	api.PUT("/domains/:id", d.DomainPool.Update)
+	api.DELETE("/domains/:id", d.DomainPool.Delete)
+	api.GET("/domains/available", d.Domain.Available)
+	api.GET("/admins", d.Admin.List)
+	api.POST("/admins", d.Admin.Create)
+	api.PUT("/admins/:id", d.Admin.Update)
+	api.PUT("/admins/:id/password", d.Admin.ResetPassword)
+	api.PUT("/admins/:id/domains", d.Admin.SetDomains)
+	api.DELETE("/admins/:id", d.Admin.Delete)
 	t := api.Group("/tunnels")
 	t.GET("", d.Tunnel.List)
 	t.POST("", d.Tunnel.Create)
@@ -51,6 +65,7 @@ func registerAPI(api *gin.RouterGroup, d Deps) {
 	t.PUT("/:id", d.Tunnel.Update)
 	t.DELETE("/:id", d.Tunnel.Delete)
 	t.POST("/:id/reset-key", d.Tunnel.ResetKey)
+	t.PUT("/:id/logging", d.Tunnel.SetLogging)
 	t.GET("/:id/sessions", d.Session.List)
 	t.GET("/:id/logs", d.Log.List)
 	t.GET("/:id/domains", d.Domain.List)

@@ -33,6 +33,8 @@ type ConfigNotifier interface {
 type DomainService struct {
 	tunnels repository.TunnelRepository
 	domains repository.DomainRepository
+	pool    repository.DomainPoolRepository
+	admins  repository.AdminUserRepository
 	nginx   NginxManager
 	issue   func(ctx context.Context, domain string) (time.Time, error)
 	reload  DomainReloader
@@ -46,6 +48,8 @@ type DomainService struct {
 type DomainDeps struct {
 	Tunnels repository.TunnelRepository
 	Domains repository.DomainRepository
+	Pool    repository.DomainPoolRepository
+	Admins  repository.AdminUserRepository
 	Nginx   NginxManager
 	Issue   func(ctx context.Context, domain string) (time.Time, error)
 	Reload  DomainReloader
@@ -60,6 +64,8 @@ func NewDomainService(d DomainDeps) *DomainService {
 	return &DomainService{
 		tunnels: d.Tunnels,
 		domains: d.Domains,
+		pool:    d.Pool,
+		admins:  d.Admins,
 		nginx:   d.Nginx,
 		issue:   d.Issue,
 		reload:  d.Reload,

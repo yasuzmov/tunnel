@@ -39,6 +39,76 @@ func (r *adminUserRepo) FindByID(ctx context.Context, id uint) (*model.AdminUser
 	return &u, nil
 }
 
+// UpdatePassword 只更新口令哈希，避免 Save 整行覆盖其他字段。
+func (r *adminUserRepo) UpdatePassword(ctx context.Context, id uint, passwordHash string) error {
+	res := r.db.WithContext(ctx).Model(&model.AdminUser{}).Where("id = ?", id).Update("password_hash", passwordHash)
+	if res.Error != nil {
+		return fmt.Errorf("更新管理员口令: %w", res.Error)
+	}
+	if res.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
+}
+
+// Create 新增管理员账号。
+func (r *adminUserRepo) Create(ctx context.Context, u *model.AdminUser) error {
+	if err := r.db.WithContext(ctx).Create(u).Error; err != nil {
+		return fmt.Errorf("创建管理员: %w", err)
+	}
+	return nil
+}
+
+// UpdateProfile 只更新登录名与角色。
+// MySQL 在字段值未变化时 RowsAffected 为 0，因此需要再确认记录是否存在。
+func (r *adminUserRepo) UpdateProfile(ctx context.Context, id uint, username, role string) error {
+	res := r.db.WithContext(ctx).Model(&model.AdminUser{}).Where("id = ?", id).
+		Updates(map[string]any{"username": username, "role": role})
+	if res.Error != nil {
+		return fmt.Errorf("更新管理员: %w", res.Error)
+	}
+	if res.RowsAffected == 0 {
+		var count int64
+		if err := r.db.WithContext(ctx).Model(&model.AdminUser{}).Where("id = ?", id).Count(&count).Error; err != nil {
+			return fmt.Errorf("确认管理员: %w", err)
+		}
+		if count == 0 {
+			return gorm.ErrRecordNotFound
+		}
+	}
+	return nil
+}
+
+// Delete 物理删除管理员账号；授权关系由域名池仓储级联清理。
+func (r *adminUserRepo) Delete(ctx context.Context, id uint) error {
+	res := r.db.WithContext(ctx).Delete(&model.AdminUser{}, id)
+	if res.Error != nil {
+		return fmt.Errorf("删除管理员: %w", res.Error)
+	}
+	if res.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
+}
+
+// List 列出全部管理员，按创建顺序。
+func (r *adminUserRepo) List(ctx context.Context) ([]model.AdminUser, error) {
+	var list []model.AdminUser
+	if err := r.db.WithContext(ctx).Order("id ASC").Find(&list).Error; err != nil {
+		return nil, fmt.Errorf("列出管理员: %w", err)
+	}
+	return list, nil
+}
+
+// CountByRole 统计某角色的管理员数量，用于避免删除/降级最后一个超级管理员。
+func (r *adminUserRepo) CountByRole(ctx context.Context, role string) (int64, error) {
+	var n int64
+	if err := r.db.WithContext(ctx).Model(&model.AdminUser{}).Where("role = ?", role).Count(&n).Error; err != nil {
+		return 0, fmt.Errorf("统计管理员角色: %w", err)
+	}
+	return n, nil
+}
+
 func wrapFind(name string, err error) error {
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return err

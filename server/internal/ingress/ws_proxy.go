@@ -38,7 +38,7 @@ func (s *Server) proxyWS(w http.ResponseWriter, r *http.Request, sess *tunnel.Se
 		writeBadGateway(w, "无法建立本地 WebSocket")
 		item.Status = http.StatusBadGateway
 		finishLog(item, err.Error())
-		s.Logs.Enqueue(entryOnly(item))
+		s.record(rt.LogEnabled, entryOnly(item))
 		return
 	}
 	item.LocalTarget = ack.LocalTarget
@@ -51,7 +51,7 @@ func (s *Server) proxyWS(w http.ResponseWriter, r *http.Request, sess *tunnel.Se
 		sess.DropStream(st.ID)
 		item.Status = http.StatusBadGateway
 		finishLog(item, err.Error())
-		s.Logs.Enqueue(entryOnly(item))
+		s.record(rt.LogEnabled, entryOnly(item))
 		return
 	}
 	defer conn.Close()
@@ -61,7 +61,7 @@ func (s *Server) proxyWS(w http.ResponseWriter, r *http.Request, sess *tunnel.Se
 	count := s.relayWS(conn, sess, st)
 	item.WSMessageCount = count
 	finishLog(item, "")
-	s.Logs.Enqueue(entryOnly(item))
+	s.record(rt.LogEnabled, entryOnly(item))
 }
 
 func (s *Server) relayWS(conn *websocket.Conn, sess *tunnel.Session, st *tunnel.Stream) int64 {

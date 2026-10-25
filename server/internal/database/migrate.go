@@ -12,6 +12,8 @@ import (
 func AutoMigrate(db *gorm.DB) error {
 	err := db.AutoMigrate(
 		&model.AdminUser{},
+		&model.Domain{},
+		&model.AdminDomain{},
 		&model.Tunnel{},
 		&model.TunnelDomain{},
 		&model.ClientSession{},

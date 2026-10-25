@@ -47,17 +47,35 @@ func (h *DomainHandler) Create(c *gin.Context) {
 		response.BadRequest(c, "无效的记录 ID")
 		return
 	}
+	adminID, ok := currentAdminID(c)
+	if !ok {
+		return
+	}
 	var in service.CreateInputDomain
 	if err := c.ShouldBindJSON(&in); err != nil {
 		response.BadRequest(c, "参数不合法")
 		return
 	}
-	d, err := h.svc.Create(c.Request.Context(), tid, in)
+	d, err := h.svc.Create(c.Request.Context(), adminID, tid, in)
 	if err != nil {
 		writeServiceError(c, err)
 		return
 	}
 	response.OK(c, d)
+}
+
+// Available 列出当前管理员可绑定、且尚未被占用的域名。
+func (h *DomainHandler) Available(c *gin.Context) {
+	adminID, ok := currentAdminID(c)
+	if !ok {
+		return
+	}
+	list, err := h.svc.AvailableDomains(c.Request.Context(), adminID)
+	if err != nil {
+		writeServiceError(c, err)
+		return
+	}
+	response.OK(c, list)
 }
 
 // Delete 解绑域名。
