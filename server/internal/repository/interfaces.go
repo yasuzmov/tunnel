@@ -19,6 +19,10 @@ type AdminUserRepository interface {
 	Delete(ctx context.Context, id uint) error
 	List(ctx context.Context) ([]model.AdminUser, error)
 	CountByRole(ctx context.Context, role string) (int64, error)
+	// ListMenus 返回管理员被授予的菜单权限；超级管理员不查此接口。
+	ListMenus(ctx context.Context, adminID uint) ([]string, error)
+	// SetMenus 覆盖式写入菜单权限。
+	SetMenus(ctx context.Context, adminID uint, menus []string) error
 }
 
 // DomainBinding 域名池条目当前绑定到的穿透记录，未绑定时 TunnelID 为 0。

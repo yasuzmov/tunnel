@@ -28,9 +28,14 @@
         </el-table-column>
         <el-table-column label="绑定记录" min-width="200">
           <template #default="{ row }">
-            <router-link v-if="row.bound_tunnel_id" :to="`/tunnels/${row.bound_tunnel_id}`" class="tunnel-link">
+            <router-link
+              v-if="row.bound_tunnel_id && auth.can('tunnels')"
+              :to="`/tunnels/${row.bound_tunnel_id}`"
+              class="tunnel-link"
+            >
               {{ row.bound_tunnel_name || `#${row.bound_tunnel_id}` }}
             </router-link>
+            <span v-else-if="row.bound_tunnel_id">{{ row.bound_tunnel_name || `#${row.bound_tunnel_id}` }}</span>
             <span v-else class="muted">未绑定</span>
           </template>
         </el-table-column>
@@ -119,8 +124,10 @@ import {
   updateManagedDomain,
 } from '../../api/domain'
 import type { ManagedDomain } from '../../api/types'
+import { useAuthStore } from '../../stores/auth'
 import { formatTime } from '../../utils/format'
 
+const auth = useAuthStore()
 const list = ref<ManagedDomain[]>([])
 const loading = ref(false)
 const saving = ref(false)

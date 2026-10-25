@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -26,8 +27,8 @@ func NewAdminService(admins repository.AdminUserRepository, pool repository.Doma
 	return &AdminService{admins: admins, pool: pool}
 }
 
-// AdminView 管理员列表项，附带被授权的域名。
-// 超级管理员不返回具体授权，前端以「全部域名」展示。
+// AdminView 管理员列表项，附带被授权的域名与可见菜单。
+// 超级管理员不返回具体授权，前端以「全部域名」「全部菜单」展示。
 type AdminView struct {
 	ID          uint      `json:"id"`
 	Username    string    `json:"username"`
@@ -35,19 +36,23 @@ type AdminView struct {
 	CreatedAt   time.Time `json:"created_at"`
 	DomainIDs   []uint    `json:"domain_ids"`
 	DomainNames []string  `json:"domain_names"`
+	Menus       []string  `json:"menus"`
 }
 
 // CreateAdminInput 新增管理员。
 type CreateAdminInput struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
-	Role     string `json:"role"`
+	Username string   `json:"username"`
+	Password string   `json:"password"`
+	Role     string   `json:"role"`
+	Menus    []string `json:"menus"`
 }
 
-// UpdateAdminInput 修改登录名与角色；Role 为空表示保持不变。
+// UpdateAdminInput 修改登录名、角色与可见菜单；Role 为空表示保持不变，
+// Menus 为 nil 表示不修改菜单（从超级管理员降级时回落到默认菜单）。
 type UpdateAdminInput struct {
-	Username string `json:"username"`
-	Role     string `json:"role"`
+	Username string    `json:"username"`
+	Role     string    `json:"role"`
+	Menus    *[]string `json:"menus"`
 }
 
 // List 列出全部管理员。
@@ -109,6 +114,10 @@ func (s *AdminService) Create(ctx context.Context, in CreateAdminInput) (*AdminV
 	if err != nil {
 		return nil, err
 	}
+	menus, err := prepareMenus(role, in.Menus)
+	if err != nil {
+		return nil, err
+	}
 	if _, err := s.admins.FindByUsername(ctx, username); err == nil {
 		return nil, ErrAdminTaken
 	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
@@ -121,6 +130,11 @@ func (s *AdminService) Create(ctx context.Context, in CreateAdminInput) (*AdminV
 	u := &model.AdminUser{Username: username, PasswordHash: hashed, Role: role}
 	if err := s.admins.Create(ctx, u); err != nil {
 		return nil, err
+	}
+	if len(menus) > 0 {
+		if err := s.admins.SetMenus(ctx, u.ID, menus); err != nil {
+			return nil, err
+		}
 	}
 	return s.Get(ctx, u.ID)
 }
@@ -142,6 +156,24 @@ func (s *AdminService) Update(ctx context.Context, id uint, in UpdateAdminInput)
 			return nil, err
 		}
 	}
+	var menus []string
+	syncMenus := false
+	if role == model.RoleSuperAdmin {
+		// 提升为超级管理员后不再需要单独授权，清掉旧菜单记录。
+		syncMenus = true
+	} else if in.Menus != nil {
+		menus, err = NormalizeMenus(*in.Menus)
+		if err != nil {
+			return nil, err
+		}
+		if len(menus) == 0 {
+			return nil, fmt.Errorf("%w: 请至少选择一个菜单", ErrBadInput)
+		}
+		syncMenus = true
+	} else if u.IsSuperAdmin() {
+		// 从超级管理员降级且未提交菜单，清空后按默认菜单生效。
+		syncMenus = true
+	}
 	if username != u.Username {
 		if found, err := s.admins.FindByUsername(ctx, username); err == nil && found.ID != id {
 			return nil, ErrAdminTaken
@@ -159,6 +191,11 @@ func (s *AdminService) Update(ctx context.Context, id uint, in UpdateAdminInput)
 			return nil, ErrNotFound
 		}
 		return nil, err
+	}
+	if syncMenus {
+		if err := s.admins.SetMenus(ctx, id, menus); err != nil {
+			return nil, err
+		}
 	}
 	return s.Get(ctx, id)
 }
@@ -233,6 +270,9 @@ func (s *AdminService) Delete(ctx context.Context, id, operatorID uint) error {
 	if err := s.pool.SetAdminDomains(ctx, id, nil); err != nil {
 		return err
 	}
+	if err := s.admins.SetMenus(ctx, id, nil); err != nil {
+		return err
+	}
 	if err := s.admins.Delete(ctx, id); err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ErrNotFound
@@ -249,6 +289,22 @@ func (s *AdminService) IsSuper(ctx context.Context, id uint) (bool, error) {
 		return false, err
 	}
 	return u.IsSuperAdmin(), nil
+}
+
+// HasMenu 判断当前管理员是否有权访问某个左侧菜单。
+func (s *AdminService) HasMenu(ctx context.Context, id uint, menu string) (bool, error) {
+	u, err := s.find(ctx, id)
+	if err != nil {
+		return false, err
+	}
+	if u.IsSuperAdmin() {
+		return true, nil
+	}
+	menus, err := s.menusOf(ctx, u)
+	if err != nil {
+		return false, err
+	}
+	return slices.Contains(menus, menu), nil
 }
 
 func (s *AdminService) find(ctx context.Context, id uint) (*model.AdminUser, error) {
@@ -274,6 +330,10 @@ func (s *AdminService) ensureAnotherSuper(ctx context.Context) error {
 }
 
 func (s *AdminService) viewOf(ctx context.Context, u model.AdminUser, nameByID map[uint]string) (AdminView, error) {
+	menus, err := s.menusOf(ctx, &u)
+	if err != nil {
+		return AdminView{}, err
+	}
 	view := AdminView{
 		ID:          u.ID,
 		Username:    u.Username,
@@ -281,6 +341,7 @@ func (s *AdminService) viewOf(ctx context.Context, u model.AdminUser, nameByID m
 		CreatedAt:   u.CreatedAt,
 		DomainIDs:   []uint{},
 		DomainNames: []string{},
+		Menus:       menus,
 	}
 	if u.IsSuperAdmin() {
 		return view, nil
@@ -296,6 +357,33 @@ func (s *AdminService) viewOf(ctx context.Context, u model.AdminUser, nameByID m
 		}
 	}
 	return view, nil
+}
+
+// menusOf 读取管理员实际生效的菜单；超级管理员直接返回全部菜单。
+func (s *AdminService) menusOf(ctx context.Context, u *model.AdminUser) ([]string, error) {
+	if u.IsSuperAdmin() {
+		return EffectiveMenus(u.Role, nil), nil
+	}
+	stored, err := s.admins.ListMenus(ctx, u.ID)
+	if err != nil {
+		return nil, err
+	}
+	return EffectiveMenus(u.Role, stored), nil
+}
+
+// prepareMenus 校验新增管理员提交的菜单；未提交时留空，按默认菜单生效。
+func prepareMenus(role string, raw []string) ([]string, error) {
+	if role == model.RoleSuperAdmin || len(raw) == 0 {
+		return nil, nil
+	}
+	menus, err := NormalizeMenus(raw)
+	if err != nil {
+		return nil, err
+	}
+	if len(menus) == 0 {
+		return nil, fmt.Errorf("%w: 请至少选择一个菜单", ErrBadInput)
+	}
+	return menus, nil
 }
 
 func validateUsername(username string) error {

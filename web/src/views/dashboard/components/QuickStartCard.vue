@@ -3,7 +3,9 @@
   <div class="page-card">
     <div class="head">
       <h3>接入指引</h3>
-      <el-button type="primary" link @click="router.push('/tunnels')">前往穿透记录</el-button>
+      <el-button v-if="auth.can('tunnels')" type="primary" link @click="router.push('/tunnels')">
+        前往穿透记录
+      </el-button>
     </div>
     <ol class="steps">
       <li v-for="(s, i) in steps" :key="s.title">
@@ -19,8 +21,10 @@
 
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
+import { useAuthStore } from '../../../stores/auth'
 
 const router = useRouter()
+const auth = useAuthStore()
 const steps = [
   { title: '新建穿透记录', desc: '系统生成唯一的接入 Key 与客户端接入地址' },
   { title: '配置客户端', desc: '在 Windows 客户端填写地址与 Key，测试连通后连接' },

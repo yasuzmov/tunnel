@@ -7,22 +7,18 @@ import (
 	"tunnel-server/internal/service"
 )
 
-// DomainPoolHandler 统一域名池管理，仅超级管理员可用。
+// DomainPoolHandler 统一域名池管理，路由层已校验「域名管理」菜单权限。
 type DomainPoolHandler struct {
-	svc    *service.DomainPoolService
-	admins *service.AdminService
+	svc *service.DomainPoolService
 }
 
 // NewDomainPoolHandler 创建域名池 handler。
-func NewDomainPoolHandler(svc *service.DomainPoolService, admins *service.AdminService) *DomainPoolHandler {
-	return &DomainPoolHandler{svc: svc, admins: admins}
+func NewDomainPoolHandler(svc *service.DomainPoolService) *DomainPoolHandler {
+	return &DomainPoolHandler{svc: svc}
 }
 
 // List 列出域名池与绑定情况。
 func (h *DomainPoolHandler) List(c *gin.Context) {
-	if !requireSuper(c, h.admins) {
-		return
-	}
 	list, err := h.svc.List(c.Request.Context())
 	if err != nil {
 		writeServiceError(c, err)
@@ -33,9 +29,6 @@ func (h *DomainPoolHandler) List(c *gin.Context) {
 
 // Create 新增域名。
 func (h *DomainPoolHandler) Create(c *gin.Context) {
-	if !requireSuper(c, h.admins) {
-		return
-	}
 	var in service.CreatePoolInput
 	if err := c.ShouldBindJSON(&in); err != nil {
 		response.BadRequest(c, "参数不合法")
@@ -51,9 +44,6 @@ func (h *DomainPoolHandler) Create(c *gin.Context) {
 
 // Update 修改域名备注。
 func (h *DomainPoolHandler) Update(c *gin.Context) {
-	if !requireSuper(c, h.admins) {
-		return
-	}
 	id, ok := queryUint(c, "id")
 	if !ok {
 		response.BadRequest(c, "无效的域名 ID")
@@ -73,9 +63,6 @@ func (h *DomainPoolHandler) Update(c *gin.Context) {
 
 // Delete 删除域名。
 func (h *DomainPoolHandler) Delete(c *gin.Context) {
-	if !requireSuper(c, h.admins) {
-		return
-	}
 	id, ok := queryUint(c, "id")
 	if !ok {
 		response.BadRequest(c, "无效的域名 ID")

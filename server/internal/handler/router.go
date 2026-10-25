@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"tunnel-server/internal/middleware"
+	"tunnel-server/internal/service"
 	"tunnel-server/internal/tunnel"
 )
 
@@ -16,6 +17,7 @@ type Deps struct {
 	Domain     *DomainHandler
 	DomainPool *DomainPoolHandler
 	Admin      *AdminHandler
+	AdminSvc   *service.AdminService
 	Session    *SessionHandler
 	Log        *LogHandler
 	Stats      *StatsHandler
@@ -43,22 +45,24 @@ func NewEngine(d Deps) *gin.Engine {
 func registerAPI(api *gin.RouterGroup, d Deps) {
 	api.GET("/auth/me", d.Auth.Me)
 	api.PUT("/auth/password", d.Auth.ChangePassword)
-	api.GET("/stats/dashboard", d.Stats.Dashboard)
+	api.GET("/stats/dashboard", requireMenu(d.AdminSvc, service.MenuDashboard), d.Stats.Dashboard)
+	// SSE 被仪表盘、日志、穿透详情共用，不按菜单单独拦截。
 	api.GET("/events", d.Event.Stream)
-	api.GET("/logs", d.Log.List)
-	api.GET("/logs/:id", d.Log.Get)
-	api.GET("/domains", d.DomainPool.List)
-	api.POST("/domains", d.DomainPool.Create)
-	api.PUT("/domains/:id", d.DomainPool.Update)
-	api.DELETE("/domains/:id", d.DomainPool.Delete)
-	api.GET("/domains/available", d.Domain.Available)
+	api.GET("/logs", requireMenu(d.AdminSvc, service.MenuLogs), d.Log.List)
+	api.GET("/logs/:id", requireMenu(d.AdminSvc, service.MenuLogs), d.Log.Get)
+	domains := api.Group("/domains", requireMenu(d.AdminSvc, service.MenuDomains))
+	domains.GET("", d.DomainPool.List)
+	domains.POST("", d.DomainPool.Create)
+	domains.PUT("/:id", d.DomainPool.Update)
+	domains.DELETE("/:id", d.DomainPool.Delete)
+	api.GET("/domains/available", requireMenu(d.AdminSvc, service.MenuTunnels), d.Domain.Available)
 	api.GET("/admins", d.Admin.List)
 	api.POST("/admins", d.Admin.Create)
 	api.PUT("/admins/:id", d.Admin.Update)
 	api.PUT("/admins/:id/password", d.Admin.ResetPassword)
 	api.PUT("/admins/:id/domains", d.Admin.SetDomains)
 	api.DELETE("/admins/:id", d.Admin.Delete)
-	t := api.Group("/tunnels")
+	t := api.Group("/tunnels", requireMenu(d.AdminSvc, service.MenuTunnels))
 	t.GET("", d.Tunnel.List)
 	t.POST("", d.Tunnel.Create)
 	t.GET("/:id", d.Tunnel.Get)

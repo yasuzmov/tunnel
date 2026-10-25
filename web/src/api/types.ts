@@ -1,12 +1,16 @@
 export type AdminRole = 'super_admin' | 'admin'
 
+/** 左侧菜单权限键，与后端 service/menu.go 保持一致。 */
+export type MenuKey = 'dashboard' | 'tunnels' | 'domains' | 'logs' | 'admins'
+
 export interface AdminUser {
   id: number
   username: string
   role: AdminRole
+  menus: MenuKey[]
 }
 
-/** 管理员列表项，包含被授权的域名。 */
+/** 管理员列表项，包含被授权的域名与可见菜单。 */
 export interface AdminAccount {
   id: number
   username: string
@@ -14,6 +18,7 @@ export interface AdminAccount {
   created_at: string
   domain_ids: number[]
   domain_names: string[]
+  menus: MenuKey[]
 }
 
 /** 统一域名池条目，包含当前绑定情况。 */

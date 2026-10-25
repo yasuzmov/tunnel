@@ -73,6 +73,14 @@ func (f *fakeAdminRepo) CountByRole(_ context.Context, role string) (int64, erro
 	return 0, nil
 }
 
+func (f *fakeAdminRepo) ListMenus(_ context.Context, _ uint) ([]string, error) {
+	return nil, nil
+}
+
+func (f *fakeAdminRepo) SetMenus(_ context.Context, _ uint, _ []string) error {
+	return nil
+}
+
 func newAuthWithUser(t *testing.T, password string) (*AuthService, *fakeAdminRepo) {
 	t.Helper()
 	hash, err := crypto.HashPassword(password)

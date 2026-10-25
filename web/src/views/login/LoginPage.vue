@@ -52,7 +52,7 @@ async function onSubmit() {
   loading.value = true
   try {
     await auth.login(form.username, form.password)
-    await router.push('/dashboard')
+    await router.push(auth.homePath)
   } finally {
     loading.value = false
   }

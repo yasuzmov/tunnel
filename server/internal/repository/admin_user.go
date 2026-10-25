@@ -109,6 +109,39 @@ func (r *adminUserRepo) CountByRole(ctx context.Context, role string) (int64, er
 	return n, nil
 }
 
+// ListMenus 返回管理员被授予的菜单权限。
+func (r *adminUserRepo) ListMenus(ctx context.Context, adminID uint) ([]string, error) {
+	var keys []string
+	err := r.db.WithContext(ctx).Model(&model.AdminMenu{}).
+		Where("admin_id = ?", adminID).
+		Order("id ASC").
+		Pluck("menu_key", &keys).Error
+	if err != nil {
+		return nil, fmt.Errorf("列出管理员菜单权限: %w", err)
+	}
+	return keys, nil
+}
+
+// SetMenus 覆盖式写入菜单权限：先清空再批量插入。
+func (r *adminUserRepo) SetMenus(ctx context.Context, adminID uint, menus []string) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("admin_id = ?", adminID).Delete(&model.AdminMenu{}).Error; err != nil {
+			return fmt.Errorf("清理管理员菜单权限: %w", err)
+		}
+		if len(menus) == 0 {
+			return nil
+		}
+		rows := make([]model.AdminMenu, 0, len(menus))
+		for _, key := range menus {
+			rows = append(rows, model.AdminMenu{AdminID: adminID, MenuKey: key})
+		}
+		if err := tx.Create(&rows).Error; err != nil {
+			return fmt.Errorf("写入管理员菜单权限: %w", err)
+		}
+		return nil
+	})
+}
+
 func wrapFind(name string, err error) error {
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return err

@@ -3,7 +3,7 @@
   <div class="page-stack">
     <div class="page-card">
       <div class="toolbar">
-        <div class="hint">超级管理员拥有全部域名；普通管理员只能绑定被授权的域名。</div>
+        <div class="hint">超级管理员拥有全部菜单与域名；普通管理员只能访问被授权的菜单，并绑定被授权的域名。</div>
         <el-button type="primary" :icon="Plus" @click="openCreate">添加管理员</el-button>
       </div>
       <el-table :data="list" v-loading="loading">
@@ -26,6 +26,15 @@
             <el-tag :type="row.role === 'super_admin' ? 'warning' : 'info'" effect="light" size="small">
               {{ roleLabel(row.role) }}
             </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="可见菜单" min-width="240">
+          <template #default="{ row }">
+            <el-tag v-if="row.role === 'super_admin'" type="success" effect="plain" size="small">全部菜单</el-tag>
+            <template v-else-if="row.menus?.length">
+              <el-tag v-for="m in row.menus" :key="m" size="small" effect="plain" class="menu-tag">{{ menuLabel(m) }}</el-tag>
+            </template>
+            <span v-else class="muted">默认菜单</span>
           </template>
         </el-table-column>
         <el-table-column label="可用域名" min-width="280">
@@ -66,10 +75,19 @@
         </el-form-item>
         <el-form-item label="角色" required>
           <el-select v-model="formForm.role" :disabled="formForm.id > 0 && formForm.id === auth.user?.id" style="width: 100%">
-            <el-option label="管理员（仅授权域名）" value="admin" />
+            <el-option label="普通管理员（按菜单与域名授权）" value="admin" />
             <el-option label="超级管理员（全部权限）" value="super_admin" />
           </el-select>
           <div v-if="formForm.id === auth.user?.id" class="field-tip">不能修改自己的角色</div>
+        </el-form-item>
+        <el-form-item v-if="formForm.role !== 'super_admin'" label="可见菜单" required>
+          <el-checkbox-group v-model="formForm.menus" class="menu-options">
+            <el-checkbox v-for="m in GRANTABLE_MENUS" :key="m.key" :value="m.key">{{ m.label }}</el-checkbox>
+          </el-checkbox-group>
+          <div class="field-tip">至少选择一个菜单；「管理员管理」仅超级管理员可用。</div>
+        </el-form-item>
+        <el-form-item v-else label="可见菜单">
+          <span class="muted">超级管理员默认拥有全部菜单</span>
         </el-form-item>
         <el-form-item v-if="!formForm.id" label="初始密码" required>
           <el-input v-model="formForm.password" type="password" show-password maxlength="64" placeholder="8~64 位" />
@@ -148,9 +166,10 @@ import {
   updateAdmin,
 } from '../../api/admin'
 import { listManagedDomains } from '../../api/domain'
-import type { AdminAccount, AdminRole, ManagedDomain } from '../../api/types'
+import type { AdminAccount, AdminRole, ManagedDomain, MenuKey } from '../../api/types'
 import { useAuthStore } from '../../stores/auth'
 import { formatTime } from '../../utils/format'
+import { DEFAULT_ADMIN_MENUS, GRANTABLE_MENUS, menuLabel } from '../../utils/menus'
 
 const auth = useAuthStore()
 const list = ref<AdminAccount[]>([])
@@ -159,11 +178,12 @@ const loading = ref(false)
 const saving = ref(false)
 
 const formVisible = ref(false)
-const formForm = reactive<{ id: number; username: string; role: AdminRole; password: string }>({
+const formForm = reactive<{ id: number; username: string; role: AdminRole; password: string; menus: MenuKey[] }>({
   id: 0,
   username: '',
   role: 'admin',
   password: '',
+  menus: [...DEFAULT_ADMIN_MENUS],
 })
 
 const permVisible = ref(false)
@@ -199,6 +219,7 @@ function openCreate() {
   formForm.username = ''
   formForm.role = 'admin'
   formForm.password = ''
+  formForm.menus = [...DEFAULT_ADMIN_MENUS]
   formVisible.value = true
 }
 
@@ -207,6 +228,8 @@ function openEdit(row: AdminAccount) {
   formForm.username = row.username
   formForm.role = row.role
   formForm.password = ''
+  const menus = (row.menus ?? []).filter((menu) => menu !== 'admins')
+  formForm.menus = menus.length ? menus : [...DEFAULT_ADMIN_MENUS]
   formVisible.value = true
 }
 
@@ -220,13 +243,18 @@ async function onSubmit() {
     ElMessage.warning('密码长度需为 8~64 位')
     return
   }
+  if (formForm.role !== 'super_admin' && !formForm.menus.length) {
+    ElMessage.warning('请至少选择一个可见菜单')
+    return
+  }
   saving.value = true
   try {
+    const menus = formForm.role === 'super_admin' ? undefined : formForm.menus
     if (formForm.id) {
-      await updateAdmin(formForm.id, username, formForm.role)
+      await updateAdmin(formForm.id, username, formForm.role, menus)
       ElMessage.success('已保存')
     } else {
-      await createAdmin(username, formForm.password, formForm.role)
+      await createAdmin(username, formForm.password, formForm.role, menus)
       ElMessage.success('已添加管理员')
     }
     formVisible.value = false
@@ -347,7 +375,8 @@ onMounted(async () => {
   color: var(--app-text-3);
   white-space: nowrap;
 }
-.domain-tag {
+.domain-tag,
+.menu-tag {
   margin: 2px 6px 2px 0;
 }
 .muted {
@@ -357,6 +386,14 @@ onMounted(async () => {
   margin-top: 4px;
   font-size: 12px;
   color: var(--app-text-3);
+}
+.menu-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+}
+.menu-options :deep(.el-checkbox) {
+  margin-right: 0;
 }
 .perm-head {
   display: flex;

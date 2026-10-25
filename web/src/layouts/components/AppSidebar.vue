@@ -32,27 +32,27 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, type Component } from 'vue'
 import { useRoute } from 'vue-router'
 import { Connection, Document, Link, Odometer, Share, UserFilled } from '@element-plus/icons-vue'
+import type { MenuKey } from '../../api/types'
 import { useAuthStore } from '../../stores/auth'
+import { MENU_DEFS } from '../../utils/menus'
 
 withDefaults(defineProps<{ collapsed?: boolean }>(), { collapsed: false })
 
+const icons: Record<MenuKey, Component> = {
+  dashboard: Odometer,
+  tunnels: Share,
+  domains: Link,
+  logs: Document,
+  admins: UserFilled,
+}
 const route = useRoute()
 const auth = useAuthStore()
-const items = computed(() => {
-  const base = [
-    { path: '/dashboard', label: '仪表盘', icon: Odometer },
-    { path: '/tunnels', label: '穿透记录', icon: Share },
-    { path: '/logs', label: '请求日志', icon: Document },
-  ]
-  if (auth.isSuper) {
-    base.splice(2, 0, { path: '/domains', label: '域名管理', icon: Link })
-    base.push({ path: '/admins', label: '管理员管理', icon: UserFilled })
-  }
-  return base
-})
+const items = computed(() =>
+  MENU_DEFS.filter((item) => auth.can(item.key)).map((item) => ({ ...item, icon: icons[item.key] })),
+)
 
 /** 前缀匹配，使子路由也能点亮父菜单。 */
 function isActive(path: string) {
