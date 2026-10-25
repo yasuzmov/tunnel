@@ -138,11 +138,13 @@ func (r *domainPoolRepo) SetAdminDomains(ctx context.Context, adminID uint, doma
 // ListBindings 返回域名池条目与穿透记录绑定情况的对应关系。
 func (r *domainPoolRepo) ListBindings(ctx context.Context) ([]DomainBinding, error) {
 	var list []DomainBinding
+	// GORM 把模型里的 HTTPSEnabled 落成 http_s_enabled 列，这里必须用真实列名，
+	// 再用 https_enabled 别名交给 DomainBinding 接收。
 	err := r.db.WithContext(ctx).Table("domains AS d").
 		Select(`d.id AS domain_id,
 			COALESCE(td.tunnel_id, 0) AS tunnel_id,
 			COALESCE(t.name, '') AS tunnel_name,
-			COALESCE(td.https_enabled, 0) AS https_enabled,
+			COALESCE(td.http_s_enabled, 0) AS https_enabled,
 			COALESCE(td.cert_status, '') AS cert_status,
 			COALESCE(td.nginx_status, '') AS nginx_status`).
 		Joins("LEFT JOIN tunnel_domains AS td ON td.domain = d.domain").

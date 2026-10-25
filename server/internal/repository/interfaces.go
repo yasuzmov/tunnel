@@ -26,7 +26,7 @@ type DomainBinding struct {
 	DomainID     uint
 	TunnelID     uint
 	TunnelName   string
-	HTTPSEnabled bool
+	HTTPSEnabled bool `gorm:"column:https_enabled"`
 	CertStatus   string
 	NginxStatus  string
 }
