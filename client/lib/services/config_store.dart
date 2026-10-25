@@ -22,6 +22,9 @@ class ConfigStore {
     return _file!;
   }
 
+  /// 配置文件绝对路径，供「关于」页展示，便于用户手动备份。
+  Future<String> filePath() async => (await _ensureFile()).path;
+
   /// 读取全部配置，文件不存在时返回空列表。
   Future<List<ConnectionProfile>> load() async {
     final file = await _ensureFile();

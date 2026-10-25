@@ -5,6 +5,7 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
+import '../../app/app_info.dart';
 import '../../models/profile.dart';
 import '../../models/rule.dart';
 import '../forward/http_forwarder.dart';
@@ -165,7 +166,7 @@ class TunnelClient {
         header: {
           'hostname': Platform.localHostname,
           'os': Platform.operatingSystem,
-          'version': '1.0.0',
+          'version': kClientVersion,
         },
       ),
     );

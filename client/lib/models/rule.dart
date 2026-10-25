@@ -59,6 +59,9 @@ class ForwardRule {
         'enabled': enabled,
       };
 
+  /// 深拷贝。编辑页基于副本修改，点击保存才写回，取消不会污染原配置。
+  ForwardRule copy() => ForwardRule.fromJson(toJson());
+
   /// 用于日志的规则简述。
   String get label {
     final host = matchHost.isEmpty ? '*' : matchHost;

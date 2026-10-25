@@ -4,6 +4,7 @@ library;
 import 'dart:async';
 import 'dart:io';
 
+import '../../app/app_info.dart';
 import '../../models/profile.dart';
 import '../../models/rule.dart';
 import '../protocol/frame.dart';
@@ -25,7 +26,7 @@ Future<WelcomeInfo> testConnectivity(ConnectionProfile profile) async {
       header: {
         'hostname': Platform.localHostname,
         'os': Platform.operatingSystem,
-        'version': '1.0.0',
+        'version': kClientVersion,
       },
     ));
     WelcomeInfo? info;

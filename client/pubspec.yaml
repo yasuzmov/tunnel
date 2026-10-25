@@ -1,7 +1,7 @@
 name: tunnel_client
 description: Windows 内网穿透客户端，通过 WebSocket 隧道把公网 HTTP/WebSocket 转发到本机服务。
 publish_to: "none"
-version: 1.0.0+1
+version: 1.1.0+1
 
 environment:
   sdk: ^3.12.2
@@ -26,3 +26,4 @@ flutter:
   uses-material-design: true
   assets:
     - assets/tray_icon.ico
+    - assets/app_icon.png
