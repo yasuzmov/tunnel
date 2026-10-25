@@ -40,4 +40,5 @@ Thumbs.db
 
 # 日志
 *.log
-logs/
+/logs/
+server/logs/
