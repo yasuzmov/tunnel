@@ -1,11 +1,16 @@
+/* 全局基础样式与 Element Plus 外观微调；变量见 tokens.css，动画见 transitions.css。 */
+@import "./tokens.css";
+@import "./transitions.css";
+
 html,
 body,
 #app {
   margin: 0;
   height: 100%;
-  font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
-  background: #f5f7fa;
-  color: #303133;
+  font-family: var(--el-font-family);
+  background: var(--app-bg);
+  color: var(--app-text);
+  -webkit-font-smoothing: antialiased;
 }
 
 * {
@@ -13,12 +18,73 @@ body,
 }
 
 .page-card {
-  background: #fff;
-  padding: 20px;
-  border-radius: 8px;
+  background: var(--app-surface);
+  padding: 20px 24px;
+  border-radius: var(--app-radius);
+  box-shadow: var(--app-shadow);
+  border: 1px solid var(--app-border);
+}
+
+.page-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
 .mono {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-family: var(--app-mono);
   font-size: 12px;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.pager {
+  margin-top: 16px;
+  justify-content: flex-end;
+}
+
+/* 表格：浅色表头 + 行悬停，行可点击时给出手型提示 */
+.el-table {
+  --el-table-header-bg-color: #f7f8fc;
+  --el-table-row-hover-bg-color: #f5f8ff;
+  --el-table-border-color: var(--app-border);
+  border-radius: var(--app-radius-sm);
+}
+.el-table th.el-table__cell {
+  color: var(--app-text-2);
+  font-weight: 600;
+}
+.el-table.is-clickable .el-table__row {
+  cursor: pointer;
+}
+
+.el-card {
+  border-radius: var(--app-radius);
+  border-color: var(--app-border);
+}
+
+.el-dialog {
+  border-radius: 16px;
+  padding: 20px 24px;
+}
+
+.el-drawer__header {
+  margin-bottom: 0;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--app-border);
+}
+
+.el-tabs__item {
+  font-weight: 500;
+}
+
+.el-button {
+  font-weight: 500;
 }

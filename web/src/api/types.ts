@@ -1,6 +1,39 @@
+export type AdminRole = 'super_admin' | 'admin'
+
 export interface AdminUser {
   id: number
   username: string
+  role: AdminRole
+}
+
+/** 管理员列表项，包含被授权的域名。 */
+export interface AdminAccount {
+  id: number
+  username: string
+  role: AdminRole
+  created_at: string
+  domain_ids: number[]
+  domain_names: string[]
+}
+
+/** 统一域名池条目，包含当前绑定情况。 */
+export interface ManagedDomain {
+  id: number
+  domain: string
+  remark: string
+  created_at: string
+  bound_tunnel_id: number
+  bound_tunnel_name: string
+  https_enabled: boolean
+  cert_status: string
+  nginx_status: string
+}
+
+/** 当前管理员可绑定且尚未被占用的域名。 */
+export interface AvailableDomain {
+  id: number
+  domain: string
+  remark: string
 }
 
 export interface TunnelDomain {
@@ -20,6 +53,7 @@ export interface Tunnel {
   name: string
   remark: string
   key: string
+  log_enabled: boolean
   last_online_at?: string
   created_at: string
   domains?: TunnelDomain[]

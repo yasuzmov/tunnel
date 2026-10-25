@@ -1,8 +1,14 @@
 import { http } from './http'
-import type { TunnelDomain } from './types'
+import type { AvailableDomain, ManagedDomain, TunnelDomain } from './types'
 
 export async function listDomains(tunnelId: number) {
   const { data } = await http.get<{ data: TunnelDomain[] }>(`/tunnels/${tunnelId}/domains`)
+  return data.data
+}
+
+/** 当前管理员可绑定且尚未被占用的域名（受域名池与授权限制）。 */
+export async function listAvailableDomains() {
+  const { data } = await http.get<{ data: AvailableDomain[] }>('/domains/available')
   return data.data
 }
 
@@ -23,4 +29,23 @@ export async function previewNginx(tunnelId: number, domainId: number) {
     `/tunnels/${tunnelId}/domains/${domainId}/nginx-preview`,
   )
   return data.data.config
+}
+
+/** 统一域名池（仅超级管理员）。 */
+export async function listManagedDomains() {
+  const { data } = await http.get<{ data: ManagedDomain[] }>('/domains')
+  return data.data
+}
+
+export async function createManagedDomain(domain: string, remark: string) {
+  const { data } = await http.post<{ data: ManagedDomain }>('/domains', { domain, remark })
+  return data.data
+}
+
+export async function updateManagedDomain(id: number, remark: string) {
+  await http.put(`/domains/${id}`, { remark })
+}
+
+export async function deleteManagedDomain(id: number) {
+  await http.delete(`/domains/${id}`)
 }

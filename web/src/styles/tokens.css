@@ -1,0 +1,36 @@
+/*
+ * 设计变量：品牌色与 Flutter 客户端种子色 #3A6FF7 保持一致。
+ * Element Plus 的浅色梯度在编译期由 SCSS 生成，运行时改主色必须把各档逐一覆盖，
+ * 否则 hover / plain 按钮仍是默认蓝。
+ */
+:root {
+  --app-primary: #3a6ff7;
+  --app-primary-soft: rgba(58, 111, 247, 0.1);
+  --app-bg: #f3f5fb;
+  --app-surface: #ffffff;
+  --app-border: #e8ebf3;
+  --app-text: #1f2533;
+  --app-text-2: #5b6478;
+  --app-text-3: #9aa3b5;
+  --app-sidebar-bg: #111827;
+  --app-sidebar-hover: rgba(255, 255, 255, 0.06);
+  --app-radius: 12px;
+  --app-radius-sm: 8px;
+  --app-shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 4px 16px rgba(16, 24, 40, 0.06);
+  --app-shadow-lg: 0 12px 40px rgba(16, 24, 40, 0.12);
+  --app-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --app-mono: ui-monospace, "Cascadia Code", SFMono-Regular, Menlo, Consolas, monospace;
+
+  --el-color-primary: #3a6ff7;
+  --el-color-primary-light-3: #7599fa;
+  --el-color-primary-light-5: #9cb7fb;
+  --el-color-primary-light-7: #c4d4fd;
+  --el-color-primary-light-8: #d8e2fd;
+  --el-color-primary-light-9: #ebf1fe;
+  --el-color-primary-dark-2: #2e59c6;
+  --el-border-radius-base: 8px;
+  --el-border-color-lighter: #eef0f6;
+  --el-text-color-primary: #1f2533;
+  --el-text-color-regular: #5b6478;
+  --el-font-family: "Inter", "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+}

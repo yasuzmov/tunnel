@@ -27,6 +27,12 @@ export async function deleteTunnel(id: number) {
   await http.delete(`/tunnels/${id}`)
 }
 
+/** 开启或关闭该穿透记录的转发日志。关闭后新请求只转发、不入库。 */
+export async function setTunnelLogging(id: number, enabled: boolean) {
+  const { data } = await http.put<{ data: TunnelDetail }>(`/tunnels/${id}/logging`, { enabled })
+  return data.data
+}
+
 export async function resetTunnelKey(id: number) {
   const { data } = await http.post<{ data: TunnelDetail }>(`/tunnels/${id}/reset-key`)
   return data.data

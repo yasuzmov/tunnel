@@ -1,0 +1,73 @@
+/*
+ * 页面切换动画：只动 transform / opacity，交给合成层处理，避免触发重排导致掉帧。
+ * slide-left = 前进（新页从右侧滑入），slide-right = 后退。
+ * 离开页使用 absolute 脱离文档流，使进出两页叠放并行动画，不会出现高度跳动。
+ */
+.slide-left-enter-active,
+.slide-left-leave-active,
+.slide-right-enter-active,
+.slide-right-leave-active {
+  transition: transform 0.42s var(--app-ease), opacity 0.32s ease;
+  will-change: transform, opacity;
+}
+
+.slide-left-leave-active,
+.slide-right-leave-active {
+  position: absolute;
+  inset: 0;
+}
+
+.slide-left-enter-from {
+  transform: translate3d(48px, 0, 0);
+  opacity: 0;
+}
+.slide-left-leave-to {
+  transform: translate3d(-32px, 0, 0);
+  opacity: 0;
+}
+.slide-right-enter-from {
+  transform: translate3d(-48px, 0, 0);
+  opacity: 0;
+}
+.slide-right-leave-to {
+  transform: translate3d(32px, 0, 0);
+  opacity: 0;
+}
+
+/* 登录页 <-> 后台整屏切换 */
+.screen-enter-active,
+.screen-leave-active {
+  transition: transform 0.5s var(--app-ease), opacity 0.4s ease;
+}
+.screen-leave-active {
+  position: absolute;
+  inset: 0;
+}
+.screen-enter-from {
+  transform: translate3d(0, 24px, 0) scale(0.985);
+  opacity: 0;
+}
+.screen-leave-to {
+  opacity: 0;
+}
+
+/* 通用淡入上移，用于卡片、列表等局部元素 */
+.rise-enter-active {
+  transition: transform 0.45s var(--app-ease), opacity 0.35s ease;
+}
+.rise-enter-from {
+  transform: translate3d(0, 12px, 0);
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .slide-left-enter-active,
+  .slide-left-leave-active,
+  .slide-right-enter-active,
+  .slide-right-leave-active,
+  .screen-enter-active,
+  .screen-leave-active,
+  .rise-enter-active {
+    transition: none;
+  }
+}
