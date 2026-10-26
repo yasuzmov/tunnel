@@ -20,6 +20,7 @@ type TunnelDisconnect func(tunnelID uint, reason string)
 type TunnelDeps struct {
 	Tunnels    repository.TunnelRepository
 	Domains    repository.DomainRepository
+	Admins     repository.AdminUserRepository
 	PublicURL  string
 	Disconnect TunnelDisconnect
 	RemoveConf func(domain string) error
@@ -30,6 +31,7 @@ type TunnelDeps struct {
 type TunnelService struct {
 	tunnels    repository.TunnelRepository
 	domains    repository.DomainRepository
+	admins     repository.AdminUserRepository
 	disconnect TunnelDisconnect
 	removeConf func(domain string) error
 	reload     DomainReloader
@@ -41,6 +43,7 @@ func NewTunnelService(d TunnelDeps) *TunnelService {
 	return &TunnelService{
 		tunnels:    d.Tunnels,
 		domains:    d.Domains,
+		admins:     d.Admins,
 		disconnect: d.Disconnect,
 		removeConf: d.RemoveConf,
 		reload:     d.Reload,
@@ -65,8 +68,12 @@ type SetLoggingInput struct {
 	Enabled bool `json:"enabled"`
 }
 
-// Create 生成随机 key 并落库。
-func (s *TunnelService) Create(ctx context.Context, in CreateInput) (*model.Tunnel, error) {
+// Create 生成随机 key 并落库，创建者记为当前管理员。
+func (s *TunnelService) Create(ctx context.Context, adminID uint, in CreateInput) (*model.Tunnel, error) {
+	v, err := s.Viewer(ctx, adminID)
+	if err != nil {
+		return nil, err
+	}
 	name := strings.TrimSpace(in.Name)
 	if name == "" {
 		return nil, fmt.Errorf("%w: 名称不能为空", ErrBadInput)
@@ -75,7 +82,7 @@ func (s *TunnelService) Create(ctx context.Context, in CreateInput) (*model.Tunn
 	if err != nil {
 		return nil, err
 	}
-	t := &model.Tunnel{Name: name, Remark: strings.TrimSpace(in.Remark), Key: key, LogEnabled: true}
+	t := &model.Tunnel{Name: name, Remark: strings.TrimSpace(in.Remark), Key: key, LogEnabled: true, CreatedBy: v.AdminID}
 	if err := s.tunnels.Create(ctx, t); err != nil {
 		return nil, err
 	}
@@ -84,8 +91,8 @@ func (s *TunnelService) Create(ctx context.Context, in CreateInput) (*model.Tunn
 
 // SetLogging 切换该记录是否写入转发日志，并刷新入口缓存使开关立即生效。
 // 缓存刷新失败时数据库已更新，返回 ErrOperation，再次切换会重试刷新。
-func (s *TunnelService) SetLogging(ctx context.Context, id uint, enabled bool) (*model.Tunnel, error) {
-	t, err := s.Get(ctx, id)
+func (s *TunnelService) SetLogging(ctx context.Context, adminID uint, id uint, enabled bool) (*model.Tunnel, error) {
+	t, err := s.Get(ctx, adminID, id)
 	if err != nil {
 		return nil, err
 	}
@@ -105,8 +112,8 @@ func (s *TunnelService) SetLogging(ctx context.Context, id uint, enabled bool) (
 }
 
 // Update 修改名称与备注。
-func (s *TunnelService) Update(ctx context.Context, id uint, in UpdateInput) (*model.Tunnel, error) {
-	t, err := s.Get(ctx, id)
+func (s *TunnelService) Update(ctx context.Context, adminID uint, id uint, in UpdateInput) (*model.Tunnel, error) {
+	t, err := s.Get(ctx, adminID, id)
 	if err != nil {
 		return nil, err
 	}
@@ -122,8 +129,12 @@ func (s *TunnelService) Update(ctx context.Context, id uint, in UpdateInput) (*m
 	return t, nil
 }
 
-// Get 读取单条记录。
-func (s *TunnelService) Get(ctx context.Context, id uint) (*model.Tunnel, error) {
+// Get 读取单条记录；普通管理员访问他人或历史无归属记录时返回 ErrNotFound。
+func (s *TunnelService) Get(ctx context.Context, adminID, id uint) (*model.Tunnel, error) {
+	v, err := s.Viewer(ctx, adminID)
+	if err != nil {
+		return nil, err
+	}
 	t, err := s.tunnels.FindByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -131,17 +142,36 @@ func (s *TunnelService) Get(ctx context.Context, id uint) (*model.Tunnel, error)
 		}
 		return nil, err
 	}
+	if !v.Owns(t.CreatedBy) {
+		return nil, ErrNotFound
+	}
+	if v.Super {
+		one := []model.Tunnel{*t}
+		s.fillCreatorNames(ctx, one)
+		t.CreatorName = one[0].CreatorName
+	}
 	return t, nil
 }
 
-// List 分页列表。
-func (s *TunnelService) List(ctx context.Context, page, pageSize int, keyword string) ([]model.Tunnel, int64, error) {
-	return s.tunnels.List(ctx, page, pageSize, strings.TrimSpace(keyword))
+// List 分页列表。超级管理员可见全部并附带创建者名称，普通管理员只看自己创建的记录。
+func (s *TunnelService) List(ctx context.Context, adminID uint, page, pageSize int, keyword string) ([]model.Tunnel, int64, error) {
+	v, err := s.Viewer(ctx, adminID)
+	if err != nil {
+		return nil, 0, err
+	}
+	list, total, err := s.tunnels.List(ctx, page, pageSize, strings.TrimSpace(keyword), v.ownerFilter())
+	if err != nil {
+		return nil, 0, err
+	}
+	if v.Super {
+		s.fillCreatorNames(ctx, list)
+	}
+	return list, total, nil
 }
 
 // Delete 软删除记录、清理 nginx 配置并踢掉在线客户端。
-func (s *TunnelService) Delete(ctx context.Context, id uint) error {
-	if _, err := s.Get(ctx, id); err != nil {
+func (s *TunnelService) Delete(ctx context.Context, adminID, id uint) error {
+	if _, err := s.Get(ctx, adminID, id); err != nil {
 		return err
 	}
 	if s.disconnect != nil {
@@ -161,8 +191,8 @@ func (s *TunnelService) Delete(ctx context.Context, id uint) error {
 }
 
 // ResetKey 轮换接入凭证，旧客户端会立即鉴权失败。
-func (s *TunnelService) ResetKey(ctx context.Context, id uint) (*model.Tunnel, error) {
-	t, err := s.Get(ctx, id)
+func (s *TunnelService) ResetKey(ctx context.Context, adminID uint, id uint) (*model.Tunnel, error) {
+	t, err := s.Get(ctx, adminID, id)
 	if err != nil {
 		return nil, err
 	}

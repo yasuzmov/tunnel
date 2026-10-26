@@ -83,6 +83,10 @@ func applyLogFilter(q *gorm.DB, f LogFilter) *gorm.DB {
 	if f.TunnelID != nil {
 		q = q.Where("tunnel_id = ?", *f.TunnelID)
 	}
+	if f.CreatedBy != nil {
+		// 子查询不带软删除条件，已删除记录的历史日志仍归属原创建者。
+		q = q.Where("tunnel_id IN (SELECT id FROM tunnels WHERE created_by = ?)", *f.CreatedBy)
+	}
 	if f.Domain != "" {
 		q = q.Where("domain = ?", f.Domain)
 	}

@@ -20,6 +20,10 @@ func NewLogHandler(svc *service.LogService) *LogHandler {
 
 // List 支持按记录、域名、方法、状态、路径、IP、时间筛选。
 func (h *LogHandler) List(c *gin.Context) {
+	adminID, ok := currentAdminID(c)
+	if !ok {
+		return
+	}
 	f := repository.LogFilter{
 		Domain:    c.Query("domain"),
 		Method:    c.Query("method"),
@@ -39,7 +43,7 @@ func (h *LogHandler) List(c *gin.Context) {
 			f.TunnelID = &tid
 		}
 	}
-	list, total, err := h.svc.List(c.Request.Context(), f)
+	list, total, err := h.svc.List(c.Request.Context(), adminID, f)
 	if err != nil {
 		writeServiceError(c, err)
 		return
@@ -57,7 +61,11 @@ func (h *LogHandler) Get(c *gin.Context) {
 		response.BadRequest(c, "无效的日志 ID")
 		return
 	}
-	item, err := h.svc.Get(c.Request.Context(), id)
+	adminID, ok := currentAdminID(c)
+	if !ok {
+		return
+	}
+	item, err := h.svc.Get(c.Request.Context(), adminID, id)
 	if err != nil {
 		writeServiceError(c, err)
 		return

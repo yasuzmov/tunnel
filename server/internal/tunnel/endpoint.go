@@ -73,6 +73,7 @@ func (e *Endpoint) serveConn(conn *websocket.Conn, tun *model.Tunnel, ip string)
 		_ = e.Sessions.TouchHeartbeat(context.Background(), sess.ID, now)
 		e.publish(eventbus.EventSessionBeat, map[string]any{
 			"session_id": sess.ID,
+			"tunnel_id":  sess.TunnelID,
 			"at":         now,
 		})
 	}

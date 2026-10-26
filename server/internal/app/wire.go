@@ -30,6 +30,7 @@ func wire(cfg *config.Config, repos *repository.Repos, hub *tunnel.Hub) (*gin.En
 	tunSvc := service.NewTunnelService(service.TunnelDeps{
 		Tunnels:    repos.Tunnel,
 		Domains:    repos.Domain,
+		Admins:     repos.Admin,
 		PublicURL:  cfg.Admin.PublicURL,
 		Disconnect: func(id uint, reason string) { hub.Kick(id, reason) },
 		RemoveConf: func(domain string) error { return ngx.Remove(domain) },
@@ -50,7 +51,7 @@ func wire(cfg *config.Config, repos *repository.Repos, hub *tunnel.Hub) (*gin.En
 	})
 	adminSvc := service.NewAdminService(repos.Admin, repos.Pool)
 	poolSvc := service.NewDomainPoolService(repos.Pool, repos.Domain)
-	logSvc := service.NewLogService(repos.Log, cfg.Log.RetainDays)
+	logSvc := service.NewLogService(repos.Log, repos.Tunnel, repos.Admin, cfg.Log.RetainDays)
 	go cleanupLoop(logSvc)
 
 	ep := &tunnel.Endpoint{
@@ -78,7 +79,7 @@ func wire(cfg *config.Config, repos *repository.Repos, hub *tunnel.Hub) (*gin.En
 		Session:    handler.NewSessionHandler(service.NewSessionService(repos.Session)),
 		Log:        handler.NewLogHandler(logSvc),
 		Stats:      handler.NewStatsHandler(service.NewStatsService(repos.Stats)),
-		Event:      handler.NewEventHandler(bus),
+		Event:      handler.NewEventHandler(bus, tunSvc),
 		TunnelWS:   ep,
 		JWTSecret:  cfg.JWT.Secret,
 		Static:     staticFS(),

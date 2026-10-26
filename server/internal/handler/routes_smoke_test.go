@@ -21,17 +21,20 @@ func TestNewEngineRegistersNewRoutes(t *testing.T) {
 		JWTSecret:  "test",
 	})
 	want := map[string]bool{
-		"GET /api/domains":             false,
-		"POST /api/domains":            false,
-		"PUT /api/domains/:id":         false,
-		"DELETE /api/domains/:id":      false,
-		"GET /api/domains/available":   false,
-		"GET /api/admins":              false,
-		"POST /api/admins":             false,
-		"PUT /api/admins/:id":          false,
-		"PUT /api/admins/:id/password": false,
-		"PUT /api/admins/:id/domains":  false,
-		"DELETE /api/admins/:id":       false,
+		"GET /api/domains":              false,
+		"POST /api/domains":             false,
+		"PUT /api/domains/:id":          false,
+		"DELETE /api/domains/:id":       false,
+		"GET /api/domains/available":    false,
+		"GET /api/admins":               false,
+		"POST /api/admins":              false,
+		"PUT /api/admins/:id":           false,
+		"PUT /api/admins/:id/password":  false,
+		"PUT /api/admins/:id/domains":   false,
+		"DELETE /api/admins/:id":        false,
+		"GET /api/tunnels/:id/logs":     false,
+		"GET /api/tunnels/:id/sessions": false,
+		"GET /api/logs/:id":             false,
 	}
 	for _, r := range e.Routes() {
 		key := r.Method + " " + r.Path

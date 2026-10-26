@@ -58,9 +58,12 @@ func (r *tunnelRepo) FindByKey(ctx context.Context, key string) (*model.Tunnel, 
 	return &t, nil
 }
 
-func (r *tunnelRepo) List(ctx context.Context, page, pageSize int, keyword string) ([]model.Tunnel, int64, error) {
+func (r *tunnelRepo) List(ctx context.Context, page, pageSize int, keyword string, createdBy *uint) ([]model.Tunnel, int64, error) {
 	page, pageSize = normalizePage(page, pageSize)
 	q := r.db.WithContext(ctx).Model(&model.Tunnel{})
+	if createdBy != nil {
+		q = q.Where("created_by = ?", *createdBy)
+	}
 	if keyword != "" {
 		like := "%" + keyword + "%"
 		q = q.Where("name LIKE ? OR remark LIKE ?", like, like)
@@ -75,6 +78,15 @@ func (r *tunnelRepo) List(ctx context.Context, page, pageSize int, keyword strin
 		return nil, 0, fmt.Errorf("列出穿透记录: %w", err)
 	}
 	return list, total, nil
+}
+
+func (r *tunnelRepo) OwnerOf(ctx context.Context, id uint) (uint, error) {
+	var t model.Tunnel
+	err := r.db.WithContext(ctx).Unscoped().Select("id", "created_by").First(&t, id).Error
+	if err != nil {
+		return 0, wrapFind("穿透记录", err)
+	}
+	return t.CreatedBy, nil
 }
 
 // LoggingFlags 只取 id 与开关，给入口路由缓存用。

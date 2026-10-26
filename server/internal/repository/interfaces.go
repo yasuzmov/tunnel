@@ -58,7 +58,10 @@ type TunnelRepository interface {
 	Delete(ctx context.Context, id uint) error
 	FindByID(ctx context.Context, id uint) (*model.Tunnel, error)
 	FindByKey(ctx context.Context, key string) (*model.Tunnel, error)
-	List(ctx context.Context, page, pageSize int, keyword string) ([]model.Tunnel, int64, error)
+	// List 分页列表；createdBy 非 nil 时只返回该管理员创建的记录。
+	List(ctx context.Context, page, pageSize int, keyword string, createdBy *uint) ([]model.Tunnel, int64, error)
+	// OwnerOf 返回记录的创建者 ID，包含已软删除的记录，供日志归属校验。
+	OwnerOf(ctx context.Context, id uint) (uint, error)
 	TouchOnline(ctx context.Context, id uint, at time.Time) error
 	// LoggingFlags 返回全部未删除记录的日志开关，供入口缓存使用，避免每个请求查库。
 	LoggingFlags(ctx context.Context) (map[uint]bool, error)
@@ -97,6 +100,8 @@ type SessionRepository interface {
 // LogFilter 请求日志查询条件。
 type LogFilter struct {
 	TunnelID  *uint
+	// CreatedBy 非 nil 时只返回该管理员创建的穿透记录产生的日志（含已删除记录）。
+	CreatedBy *uint
 	Domain    string
 	Method    string
 	Status    *int

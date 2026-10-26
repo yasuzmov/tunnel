@@ -33,6 +33,12 @@
           <span v-else class="muted">未绑定</span>
         </template>
       </el-table-column>
+      <el-table-column v-if="auth.isSuper" label="创建者" width="130">
+        <template #default="{ row }">
+          <span v-if="row.created_by">{{ row.creator_name || `#${row.created_by}` }}</span>
+          <span v-else class="muted">历史记录</span>
+        </template>
+      </el-table-column>
       <el-table-column label="转发日志" width="110" align="center">
         <template #default="{ row }">
           <div @click.stop>
@@ -91,6 +97,7 @@ import { Plus, Search } from '@element-plus/icons-vue'
 import { createTunnel, deleteTunnel, listTunnels, setTunnelLogging } from '../../api/tunnel'
 import type { Tunnel } from '../../api/types'
 import { usePagination } from '../../composables/usePagination'
+import { useAuthStore } from '../../stores/auth'
 import { formatTime } from '../../utils/format'
 
 const { pager } = usePagination()
@@ -102,6 +109,7 @@ const loggingId = ref(0)
 const show = ref(false)
 const form = reactive({ name: '', remark: '' })
 const router = useRouter()
+const auth = useAuthStore()
 
 async function load() {
   loading.value = true

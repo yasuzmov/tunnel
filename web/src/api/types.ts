@@ -60,6 +60,10 @@ export interface Tunnel {
   key: string
   log_enabled: boolean
   last_online_at?: string
+  /** 创建者管理员 ID；0 表示升级前的历史记录（无归属，仅超级管理员可见）。 */
+  created_by: number
+  /** 创建者登录名，仅超级管理员查询时返回。 */
+  creator_name?: string
   created_at: string
   domains?: TunnelDomain[]
 }
