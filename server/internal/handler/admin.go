@@ -98,32 +98,6 @@ func (h *AdminHandler) ResetPassword(c *gin.Context) {
 	response.OK(c, gin.H{})
 }
 
-type setAdminDomainsReq struct {
-	DomainIDs []uint `json:"domain_ids"`
-}
-
-// SetDomains 配置某管理员可使用的域名。
-func (h *AdminHandler) SetDomains(c *gin.Context) {
-	if !requireSuper(c, h.svc) {
-		return
-	}
-	id, ok := queryUint(c, "id")
-	if !ok {
-		response.BadRequest(c, "无效的管理员 ID")
-		return
-	}
-	var in setAdminDomainsReq
-	if err := c.ShouldBindJSON(&in); err != nil {
-		response.BadRequest(c, "参数不合法")
-		return
-	}
-	if err := h.svc.SetDomains(c.Request.Context(), id, in.DomainIDs); err != nil {
-		writeServiceError(c, err)
-		return
-	}
-	response.OK(c, gin.H{})
-}
-
 // Delete 删除管理员。
 func (h *AdminHandler) Delete(c *gin.Context) {
 	if !requireSuper(c, h.svc) {

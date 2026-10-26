@@ -51,7 +51,9 @@ func registerAPI(api *gin.RouterGroup, d Deps) {
 	api.GET("/logs", requireMenu(d.AdminSvc, service.MenuLogs), d.Log.List)
 	api.GET("/logs/:id", requireMenu(d.AdminSvc, service.MenuLogs), d.Log.Get)
 	domains := api.Group("/domains", requireMenu(d.AdminSvc, service.MenuDomains))
+	// 域名池按创建者隔离：普通管理员只能看到、操作自己创建的域名。
 	domains.GET("", d.DomainPool.List)
+	domains.GET("/config", d.DomainPool.Config)
 	domains.POST("", d.DomainPool.Create)
 	domains.PUT("/:id", d.DomainPool.Update)
 	domains.DELETE("/:id", d.DomainPool.Delete)
@@ -60,7 +62,6 @@ func registerAPI(api *gin.RouterGroup, d Deps) {
 	api.POST("/admins", d.Admin.Create)
 	api.PUT("/admins/:id", d.Admin.Update)
 	api.PUT("/admins/:id/password", d.Admin.ResetPassword)
-	api.PUT("/admins/:id/domains", d.Admin.SetDomains)
 	api.DELETE("/admins/:id", d.Admin.Delete)
 	// 穿透记录按创建者隔离：CRUD 在服务层校验，子资源经 RequireAccess 统一拦截。
 	t := api.Group("/tunnels", requireMenu(d.AdminSvc, service.MenuTunnels))

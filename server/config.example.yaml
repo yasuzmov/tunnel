@@ -5,6 +5,9 @@ admin:
   listen: ":8080"
   # 客户端展示用的接入根地址。生产环境应写成 https://你的管理域名
   public_url: "http://127.0.0.1:8080"
+  # 「域名管理」创建域名时固定的主域名后缀，管理员只能填写前缀，生成「前缀.主域名」。
+  # 需在 DNS 中配置泛解析 *.主域名。留空时取 public_url 的主机名（为 IP/localhost 时无法创建域名）。
+  # domain_suffix: "tunnel.example.com"
 
 ingress:
   # 仅给本机 nginx 反代，不要直接暴露到公网

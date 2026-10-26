@@ -35,19 +35,16 @@ type DomainBinding struct {
 	NginxStatus  string
 }
 
-// DomainPoolRepository 统一域名池与管理员域名授权。
+// DomainPoolRepository 统一域名池。
 type DomainPoolRepository interface {
 	Create(ctx context.Context, d *model.Domain) error
-	UpdateRemark(ctx context.Context, id uint, remark string) error
-	// Delete 同时删除该域名的全部管理员授权。
+	// Update 更新域名与备注；备注、域名都未变化时也需确认记录存在。
+	Update(ctx context.Context, id uint, domain, remark string) error
 	Delete(ctx context.Context, id uint) error
 	FindByID(ctx context.Context, id uint) (*model.Domain, error)
 	FindByDomain(ctx context.Context, domain string) (*model.Domain, error)
-	List(ctx context.Context, keyword string) ([]model.Domain, error)
-	// ListByAdmin 列出被授权的域名；超级管理员不查此接口。
-	ListByAdmin(ctx context.Context, adminID uint) ([]model.Domain, error)
-	ListAdminDomainIDs(ctx context.Context, adminID uint) ([]uint, error)
-	SetAdminDomains(ctx context.Context, adminID uint, domainIDs []uint) error
+	// List 列出域名池；createdBy 非 nil 时只返回该管理员创建的域名。
+	List(ctx context.Context, keyword string, createdBy *uint) ([]model.Domain, error)
 	ListBindings(ctx context.Context) ([]DomainBinding, error)
 }
 

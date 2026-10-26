@@ -135,7 +135,7 @@ func accessEngine(t *testing.T) *gin.Engine {
 		{ID: 100, TunnelID: 10}, {ID: 101, TunnelID: 11}, {ID: 102, TunnelID: 12},
 	}}
 	tunSvc := service.NewTunnelService(service.TunnelDeps{Tunnels: tunnels, Admins: admins})
-	adminSvc := service.NewAdminService(admins, nil)
+	adminSvc := service.NewAdminService(admins)
 	return NewEngine(Deps{
 		Auth:       &AuthHandler{},
 		Tunnel:     NewTunnelHandler(tunSvc),

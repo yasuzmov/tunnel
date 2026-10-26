@@ -16,27 +16,24 @@ import (
 	"tunnel-server/internal/repository"
 )
 
-// AdminService 管理后台账号管理、角色与域名授权。
+// AdminService 管理后台账号管理、角色与菜单权限。
+// 域名不再单独授权：管理员只能使用自己在域名管理中创建的域名。
 type AdminService struct {
 	admins repository.AdminUserRepository
-	pool   repository.DomainPoolRepository
 }
 
 // NewAdminService 创建管理员服务。
-func NewAdminService(admins repository.AdminUserRepository, pool repository.DomainPoolRepository) *AdminService {
-	return &AdminService{admins: admins, pool: pool}
+func NewAdminService(admins repository.AdminUserRepository) *AdminService {
+	return &AdminService{admins: admins}
 }
 
-// AdminView 管理员列表项，附带被授权的域名与可见菜单。
-// 超级管理员不返回具体授权，前端以「全部域名」「全部菜单」展示。
+// AdminView 管理员列表项，附带可见菜单；超级管理员返回全部菜单。
 type AdminView struct {
-	ID          uint      `json:"id"`
-	Username    string    `json:"username"`
-	Role        string    `json:"role"`
-	CreatedAt   time.Time `json:"created_at"`
-	DomainIDs   []uint    `json:"domain_ids"`
-	DomainNames []string  `json:"domain_names"`
-	Menus       []string  `json:"menus"`
+	ID        uint      `json:"id"`
+	Username  string    `json:"username"`
+	Role      string    `json:"role"`
+	CreatedAt time.Time `json:"created_at"`
+	Menus     []string  `json:"menus"`
 }
 
 // CreateAdminInput 新增管理员。
@@ -61,17 +58,9 @@ func (s *AdminService) List(ctx context.Context) ([]AdminView, error) {
 	if err != nil {
 		return nil, err
 	}
-	domains, err := s.pool.List(ctx, "")
-	if err != nil {
-		return nil, err
-	}
-	nameByID := make(map[uint]string, len(domains))
-	for _, d := range domains {
-		nameByID[d.ID] = d.Domain
-	}
 	views := make([]AdminView, 0, len(users))
 	for _, u := range users {
-		view, err := s.viewOf(ctx, u, nameByID)
+		view, err := s.viewOf(ctx, u)
 		if err != nil {
 			return nil, err
 		}
@@ -86,15 +75,7 @@ func (s *AdminService) Get(ctx context.Context, id uint) (*AdminView, error) {
 	if err != nil {
 		return nil, err
 	}
-	domains, err := s.pool.List(ctx, "")
-	if err != nil {
-		return nil, err
-	}
-	nameByID := make(map[uint]string, len(domains))
-	for _, d := range domains {
-		nameByID[d.ID] = d.Domain
-	}
-	view, err := s.viewOf(ctx, *u, nameByID)
+	view, err := s.viewOf(ctx, *u)
 	if err != nil {
 		return nil, err
 	}
@@ -221,38 +202,6 @@ func (s *AdminService) ResetPassword(ctx context.Context, id uint, password stri
 	return nil
 }
 
-// SetDomains 覆盖式配置某管理员可使用的域名。
-func (s *AdminService) SetDomains(ctx context.Context, id uint, domainIDs []uint) error {
-	u, err := s.find(ctx, id)
-	if err != nil {
-		return err
-	}
-	if u.IsSuperAdmin() {
-		return fmt.Errorf("%w: 超级管理员默认拥有全部域名", ErrBadInput)
-	}
-	domains, err := s.pool.List(ctx, "")
-	if err != nil {
-		return err
-	}
-	known := make(map[uint]struct{}, len(domains))
-	for _, d := range domains {
-		known[d.ID] = struct{}{}
-	}
-	seen := make(map[uint]struct{}, len(domainIDs))
-	clean := make([]uint, 0, len(domainIDs))
-	for _, did := range domainIDs {
-		if _, ok := known[did]; !ok {
-			return fmt.Errorf("%w: 域名不存在", ErrBadInput)
-		}
-		if _, dup := seen[did]; dup {
-			continue
-		}
-		seen[did] = struct{}{}
-		clean = append(clean, did)
-	}
-	return s.pool.SetAdminDomains(ctx, id, clean)
-}
-
 // Delete 删除管理员；禁止删除自己，且必须保留至少一个超级管理员。
 func (s *AdminService) Delete(ctx context.Context, id, operatorID uint) error {
 	if id == operatorID {
@@ -266,9 +215,6 @@ func (s *AdminService) Delete(ctx context.Context, id, operatorID uint) error {
 		if err := s.ensureAnotherSuper(ctx); err != nil {
 			return err
 		}
-	}
-	if err := s.pool.SetAdminDomains(ctx, id, nil); err != nil {
-		return err
 	}
 	if err := s.admins.SetMenus(ctx, id, nil); err != nil {
 		return err
@@ -329,34 +275,18 @@ func (s *AdminService) ensureAnotherSuper(ctx context.Context) error {
 	return nil
 }
 
-func (s *AdminService) viewOf(ctx context.Context, u model.AdminUser, nameByID map[uint]string) (AdminView, error) {
+func (s *AdminService) viewOf(ctx context.Context, u model.AdminUser) (AdminView, error) {
 	menus, err := s.menusOf(ctx, &u)
 	if err != nil {
 		return AdminView{}, err
 	}
-	view := AdminView{
-		ID:          u.ID,
-		Username:    u.Username,
-		Role:        u.Role,
-		CreatedAt:   u.CreatedAt,
-		DomainIDs:   []uint{},
-		DomainNames: []string{},
-		Menus:       menus,
-	}
-	if u.IsSuperAdmin() {
-		return view, nil
-	}
-	ids, err := s.pool.ListAdminDomainIDs(ctx, u.ID)
-	if err != nil {
-		return view, err
-	}
-	for _, id := range ids {
-		view.DomainIDs = append(view.DomainIDs, id)
-		if name, ok := nameByID[id]; ok {
-			view.DomainNames = append(view.DomainNames, name)
-		}
-	}
-	return view, nil
+	return AdminView{
+		ID:        u.ID,
+		Username:  u.Username,
+		Role:      u.Role,
+		CreatedAt: u.CreatedAt,
+		Menus:     menus,
+	}, nil
 }
 
 // menusOf 读取管理员实际生效的菜单；超级管理员直接返回全部菜单。

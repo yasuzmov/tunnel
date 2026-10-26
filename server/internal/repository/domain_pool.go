@@ -25,9 +25,10 @@ func (r *domainPoolRepo) Create(ctx context.Context, d *model.Domain) error {
 	return nil
 }
 
-// UpdateRemark 只更新备注；备注未变化时 MySQL 返回 0 行，需确认记录存在。
-func (r *domainPoolRepo) UpdateRemark(ctx context.Context, id uint, remark string) error {
-	res := r.db.WithContext(ctx).Model(&model.Domain{}).Where("id = ?", id).Update("remark", remark)
+// Update 更新域名与备注；内容未变化时 MySQL 返回 0 行，需确认记录存在。
+func (r *domainPoolRepo) Update(ctx context.Context, id uint, domain, remark string) error {
+	res := r.db.WithContext(ctx).Model(&model.Domain{}).Where("id = ?", id).
+		Updates(map[string]any{"domain": domain, "remark": remark})
 	if res.Error != nil {
 		return fmt.Errorf("更新域名池条目: %w", res.Error)
 	}
@@ -43,21 +44,16 @@ func (r *domainPoolRepo) UpdateRemark(ctx context.Context, id uint, remark strin
 	return nil
 }
 
-// Delete 在同一事务里清理授权关系与域名条目。
+// Delete 删除域名条目。历史 admin_domains 授权表已停用，不再联动清理。
 func (r *domainPoolRepo) Delete(ctx context.Context, id uint) error {
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Where("domain_id = ?", id).Delete(&model.AdminDomain{}).Error; err != nil {
-			return fmt.Errorf("删除域名授权: %w", err)
-		}
-		res := tx.Delete(&model.Domain{}, id)
-		if res.Error != nil {
-			return fmt.Errorf("删除域名池条目: %w", res.Error)
-		}
-		if res.RowsAffected == 0 {
-			return gorm.ErrRecordNotFound
-		}
-		return nil
-	})
+	res := r.db.WithContext(ctx).Delete(&model.Domain{}, id)
+	if res.Error != nil {
+		return fmt.Errorf("删除域名池条目: %w", res.Error)
+	}
+	if res.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 func (r *domainPoolRepo) FindByID(ctx context.Context, id uint) (*model.Domain, error) {
@@ -76,9 +72,12 @@ func (r *domainPoolRepo) FindByDomain(ctx context.Context, domain string) (*mode
 	return &d, nil
 }
 
-func (r *domainPoolRepo) List(ctx context.Context, keyword string) ([]model.Domain, error) {
+func (r *domainPoolRepo) List(ctx context.Context, keyword string, createdBy *uint) ([]model.Domain, error) {
 	var list []model.Domain
 	q := r.db.WithContext(ctx).Model(&model.Domain{})
+	if createdBy != nil {
+		q = q.Where("created_by = ?", *createdBy)
+	}
 	if keyword != "" {
 		like := "%" + keyword + "%"
 		q = q.Where("domain LIKE ? OR remark LIKE ?", like, like)
@@ -87,52 +86,6 @@ func (r *domainPoolRepo) List(ctx context.Context, keyword string) ([]model.Doma
 		return nil, fmt.Errorf("列出域名池: %w", err)
 	}
 	return list, nil
-}
-
-func (r *domainPoolRepo) ListByAdmin(ctx context.Context, adminID uint) ([]model.Domain, error) {
-	var list []model.Domain
-	err := r.db.WithContext(ctx).Model(&model.Domain{}).
-		Select("domains.*").
-		Joins("JOIN admin_domains ON admin_domains.domain_id = domains.id").
-		Where("admin_domains.admin_id = ?", adminID).
-		Order("domains.domain ASC").
-		Find(&list).Error
-	if err != nil {
-		return nil, fmt.Errorf("列出管理员可用域名: %w", err)
-	}
-	return list, nil
-}
-
-func (r *domainPoolRepo) ListAdminDomainIDs(ctx context.Context, adminID uint) ([]uint, error) {
-	var ids []uint
-	err := r.db.WithContext(ctx).Model(&model.AdminDomain{}).
-		Where("admin_id = ?", adminID).
-		Order("domain_id ASC").
-		Pluck("domain_id", &ids).Error
-	if err != nil {
-		return nil, fmt.Errorf("列出管理员域名授权: %w", err)
-	}
-	return ids, nil
-}
-
-// SetAdminDomains 覆盖式写入授权：先清空再批量插入。
-func (r *domainPoolRepo) SetAdminDomains(ctx context.Context, adminID uint, domainIDs []uint) error {
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Where("admin_id = ?", adminID).Delete(&model.AdminDomain{}).Error; err != nil {
-			return fmt.Errorf("清理管理员域名授权: %w", err)
-		}
-		if len(domainIDs) == 0 {
-			return nil
-		}
-		rows := make([]model.AdminDomain, 0, len(domainIDs))
-		for _, id := range domainIDs {
-			rows = append(rows, model.AdminDomain{AdminID: adminID, DomainID: id})
-		}
-		if err := tx.Create(&rows).Error; err != nil {
-			return fmt.Errorf("写入管理员域名授权: %w", err)
-		}
-		return nil
-	})
 }
 
 // ListBindings 返回域名池条目与穿透记录绑定情况的对应关系。

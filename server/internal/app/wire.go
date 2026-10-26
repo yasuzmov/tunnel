@@ -49,8 +49,13 @@ func wire(cfg *config.Config, repos *repository.Repos, hub *tunnel.Hub) (*gin.En
 		NginxOn: cfg.Nginx.Enabled,
 		CertOn:  cfg.Certbot.Enabled,
 	})
-	adminSvc := service.NewAdminService(repos.Admin, repos.Pool)
-	poolSvc := service.NewDomainPoolService(repos.Pool, repos.Domain)
+	adminSvc := service.NewAdminService(repos.Admin)
+	poolSvc := service.NewDomainPoolService(service.DomainPoolDeps{
+		Pool:       repos.Pool,
+		Bound:      repos.Domain,
+		Admins:     repos.Admin,
+		BaseDomain: cfg.Admin.BaseDomain(),
+	})
 	logSvc := service.NewLogService(repos.Log, repos.Tunnel, repos.Admin, cfg.Log.RetainDays)
 	go cleanupLoop(logSvc)
 

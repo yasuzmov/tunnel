@@ -26,11 +26,11 @@ func TestNewEngineRegistersNewRoutes(t *testing.T) {
 		"PUT /api/domains/:id":          false,
 		"DELETE /api/domains/:id":       false,
 		"GET /api/domains/available":    false,
+		"GET /api/domains/config":       false,
 		"GET /api/admins":               false,
 		"POST /api/admins":              false,
 		"PUT /api/admins/:id":           false,
 		"PUT /api/admins/:id/password":  false,
-		"PUT /api/admins/:id/domains":   false,
 		"DELETE /api/admins/:id":        false,
 		"GET /api/tunnels/:id/logs":     false,
 		"GET /api/tunnels/:id/sessions": false,
@@ -40,6 +40,11 @@ func TestNewEngineRegistersNewRoutes(t *testing.T) {
 		key := r.Method + " " + r.Path
 		if _, ok := want[key]; ok {
 			want[key] = true
+		}
+	}
+	for _, r := range e.Routes() {
+		if r.Method+" "+r.Path == "PUT /api/admins/:id/domains" {
+			t.Errorf("域名分配接口应已移除: %s", r.Path)
 		}
 	}
 	for key, ok := range want {

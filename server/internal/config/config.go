@@ -2,7 +2,12 @@
 // 所有可调超时、路径、密钥都集中在这里，避免散落在业务代码中写死。
 package config
 
-import "time"
+import (
+	"net"
+	"net/url"
+	"strings"
+	"time"
+)
 
 // Config 是服务端运行时配置的根结构。
 type Config struct {
@@ -21,6 +26,9 @@ type Config struct {
 type AdminConfig struct {
 	Listen    string `yaml:"listen"`
 	PublicURL string `yaml:"public_url"`
+	// DomainSuffix 域名池统一后缀（DNS 中已配置 *.后缀 泛解析）。
+	// 留空时取 public_url 的主机名，例如 https://fish.czypro.cn -> fish.czypro.cn。
+	DomainSuffix string `yaml:"domain_suffix"`
 }
 
 // IngressConfig 公网流量入口，仅给 nginx 反代使用。
@@ -122,4 +130,23 @@ func (c LogConfig) EffectiveBodyLimit() int {
 		return 64 * 1024
 	}
 	return c.BodyLimit
+}
+
+// BaseDomain 返回域名池统一后缀：优先 domain_suffix，否则取 public_url 的主机名。
+// 主机名为 IP、localhost 等不含点的名字时返回空串，表示未配置，域名池将拒绝新增。
+func (c AdminConfig) BaseDomain() string {
+	raw := strings.TrimSpace(c.DomainSuffix)
+	if raw == "" {
+		u, err := url.Parse(strings.TrimSpace(c.PublicURL))
+		if err != nil {
+			return ""
+		}
+		raw = u.Hostname()
+	}
+	host := strings.Trim(strings.ToLower(strings.TrimSpace(raw)), ".")
+	host = strings.TrimPrefix(host, "*.")
+	if host == "" || !strings.Contains(host, ".") || net.ParseIP(host) != nil {
+		return ""
+	}
+	return host
 }
