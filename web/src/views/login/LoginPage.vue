@@ -22,7 +22,6 @@
           </el-form-item>
           <el-button class="submit" type="primary" native-type="submit" :loading="loading">登 录</el-button>
         </el-form>
-        <p class="foot">首次部署默认账号 admin / admin123，登录后请在右上角菜单修改密码</p>
       </div>
     </section>
   </div>
