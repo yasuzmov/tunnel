@@ -10,28 +10,36 @@ export interface AdminUser {
   menus: MenuKey[]
 }
 
-/** 管理员列表项，包含被授权的域名与可见菜单。 */
+/** 管理员列表项，包含可见菜单。 */
 export interface AdminAccount {
   id: number
   username: string
   role: AdminRole
   created_at: string
-  domain_ids: number[]
-  domain_names: string[]
   menus: MenuKey[]
 }
 
-/** 统一域名池条目，包含当前绑定情况。 */
+/** 域名管理条目，包含创建者与当前绑定情况。 */
 export interface ManagedDomain {
   id: number
   domain: string
+  /** 域名前缀；历史上不符合「前缀.主域名」格式的域名为空。 */
+  name: string
   remark: string
   created_at: string
+  created_by: number
+  /** 创建者登录名，仅超级管理员可见。 */
+  creator_name?: string
   bound_tunnel_id: number
   bound_tunnel_name: string
   https_enabled: boolean
   cert_status: string
   nginx_status: string
+}
+
+/** 域名池配置：创建域名时固定的主域名后缀。 */
+export interface DomainPoolConfig {
+  base_domain: string
 }
 
 /** 当前管理员可绑定且尚未被占用的域名。 */

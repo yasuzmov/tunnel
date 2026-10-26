@@ -9,8 +9,8 @@
   />
   <div class="bar">
     <el-button type="primary" :disabled="!tunnel.last_online_at" @click="openCreate">添加域名</el-button>
-    <router-link v-if="auth.isSuper" to="/domains" class="manage-link">管理域名</router-link>
-    <span class="bar-tip">只能绑定域名列表中已登记的域名</span>
+    <router-link v-if="auth.can('domains')" to="/domains" class="manage-link">管理域名</router-link>
+    <span class="bar-tip">{{ auth.isSuper ? '可绑定「域名管理」中任意未使用的域名' : '只能绑定自己在「域名管理」中创建、且未被使用的域名' }}</span>
   </div>
   <el-table :data="list">
     <el-table-column prop="domain" label="域名" />
@@ -33,7 +33,7 @@
         <el-select
           v-model="form.domain"
           filterable
-          placeholder="选择已授权的域名"
+          placeholder="选择可用的域名"
           style="width: 100%"
           :loading="loadingAvailable"
         >
@@ -49,7 +49,7 @@
     </el-form>
     <el-alert
       v-if="!loadingAvailable && !available.length"
-      title="暂无可绑定的域名，请联系超级管理员在「域名管理」中添加并授权。"
+      :title="auth.can('domains') ? '暂无可绑定的域名，请先在「域名管理」中创建域名。' : '暂无可绑定的域名，请联系超级管理员开通「域名管理」菜单后创建域名。'"
       type="info"
       show-icon
       :closable="false"

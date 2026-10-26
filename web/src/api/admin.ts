@@ -34,10 +34,6 @@ export async function resetAdminPassword(id: number, password: string) {
   await http.put(`/admins/${id}/password`, { password })
 }
 
-export async function setAdminDomains(id: number, domainIds: number[]) {
-  await http.put(`/admins/${id}/domains`, { domain_ids: domainIds })
-}
-
 export async function deleteAdmin(id: number) {
   await http.delete(`/admins/${id}`)
 }
